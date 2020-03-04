@@ -1,0 +1,21 @@
+version: '3.7'
+
+services:
+
+  # gru:
+  #   build:
+  #     dockerfile: Dockerfile.dev
+  #     context: ./gru
+  #   volumes:
+  #     - /app/node_modules
+  #     - ./server:/app
+
+  gene:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./gene
+    volumes:
+      - /app/node_modules
+      - ./gene:/app
+    ports:
+      - "3000:3000"

@@ -1,0 +1,29 @@
+# Node 12 LTS image
+FROM node:12
+
+# Install Chrome to run client tests
+RUN echo 'deb http://dl.google.com/linux/chrome/deb/ stable main' > /etc/apt/sources.list.d/chrome.list
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+
+RUN apt-get update && \
+    apt-get install google-chrome-stable -y
+
+ENV CHROME_BIN /usr/bin/google-chrome
+
+# Source code is in /app
+WORKDIR /app
+
+# Copy package.json & package-lock.json
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy code
+COPY . .
+
+# Define env vars
+ENV PORT 3000
+
+# Start the express server for local development with webpack running in the background
+CMD ["bin/local-dev.sh"]

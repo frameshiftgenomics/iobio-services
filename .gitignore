@@ -1,0 +1,13 @@
+# DS Store
+.DS_Store
+
+# Dependency directories
+node_modules
+npm-debug.log*
+
+# Text editor
+.idea
+.vscode
+
+# Environment variables files
+.env

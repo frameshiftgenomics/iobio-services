@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>gene.iobio</title>
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link
+    href='https://fonts.googleapis.com/css?family=Cabin:400,500,600,700|Quicksand:400|Roboto:300,400,500,700|Open+Sans:400,400i,600,600i,700|Material+Icons|Lato|Poppins:400,500|Montserrat|Raleway:300,400,500,700'
+    rel="stylesheet" type="text/css">
+
+
+  <link rel="stylesheet" href="assets/css/pageguide.css">
+  <link rel="stylesheet" href="assets/css/alertify.default.min.css">
+  <link rel="stylesheet" href="assets/css/alertify.min.css">
+
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+</head>
+
+<body>
+  <div id="main-tooltip" style="opacity:0" class="app-tooltip full-width">
+  </div>
+  <div id="exon-tooltip" style="opacity:0" class="black-tooltip app-tooltip full-width">
+  </div>
+
+  <svg id="symbols" xmlns="http://www.w3.org/2000/svg" style="display: none;">
+    <symbol id="clinvar-glyph" width="13" height="13" viewBox="0 0 16 16">
+      <path
+        d="M14 4h-3v-2c0-0.55-0.45-1-1-1h-4c-0.55 0-1 0.45-1 1v2h-3c-1.1 0-2 0.9-2 2v8c0 1.1 0.9 2 2 2h12c1.1 0 2-0.9 2-2v-8c0-1.1-0.9-2-2-2zM6 2h4v2h-4v-2zM12 11h-3v3h-2v-3h-3v-2h3v-3h2v3h3v2z">
+    </symbol>
+
+    <symbol id="question-mark-symbol" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 0h24v24H0z" fill="none" />
+      <path
+        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z" />
+    </symbol>
+
+    <symbol id="thumbs-up-symbol" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 0h24v24H0z" fill="none" />
+      <path
+        d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z" />
+    </symbol>
+
+    <symbol id="thumbs-down-symbol" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 0h24v24H0z" fill="none" />
+      <path
+        d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v1.91l.01.01L1 14c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z" />
+    </symbol>
+
+    <symbol id="thumbs-up-down-symbol" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M12 6c0-.55-.45-1-1-1H5.82l.66-3.18.02-.23c0-.31-.13-.59-.33-.8L5.38 0 .44 4.94C.17 5.21 0 5.59 0 6v6.5c0 .83.67 1.5 1.5 1.5h6.75c.62 0 1.15-.38 1.38-.91l2.26-5.29c.07-.17.11-.36.11-.55V6zm10.5 4h-6.75c-.62 0-1.15.38-1.38.91l-2.26 5.29c-.07.17-.11.36-.11.55V18c0 .55.45 1 1 1h5.18l-.66 3.18-.02.24c0 .31.13.59.33.8l.79.78 4.94-4.94c.27-.27.44-.65.44-1.06v-6.5c0-.83-.67-1.5-1.5-1.5z" />
+      <path d="M0 0h24v24H0z" fill="none" />
+    </symbol>
+
+    <symbol id="circle-checkmark-symbol" height="24" viewBox="0 0 24 24" width="24">
+      <path d="M0 0h24v24H0z" fill="none" />
+      <path
+        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+    </symbol>
+
+
+    <symbol id="long-arrow-down-symbol" width="493.356px" height="493.355px" viewBox="0 0 493.356 493.355">
+      <g>
+        <path
+          d="M355.457,370.873c-1.523-3.614-4.288-5.428-8.285-5.428h-63.954V9.135c0-2.666-0.858-4.856-2.569-6.567  C278.944, .855,276.753,0,274.084,0h-54.818c-2.667,0-4.854,0.855-6.567,2.568c-1.711,1.711-2.57,3.901-2.57,6.567v356.314h-63.953 c-3.806,0-6.567,1.81-8.28,5.428c-1.521,3.613-1.043,6.943,1.431,9.996L240.68,490.505c1.903,1.902,4.187,2.851,6.854,2.851 c2.478,0,4.665-0.948,6.567-2.851l99.927-109.632C356.503,377.82,356.983,374.49,355.457,370.873z" />
+      </g>
+    </symbol>
+
+    <symbol id="coverage-problem-symbol" width="24" height="24" viewBox="0 0 24 24">
+      <rect class="gene-badge-coverage-problem" width="24" height="24" />
+      <g id="Layer_1">
+        <path fill="#FFFFFF" d="M16,18l2.3-2.3l-4.9-4.9l-4,4L2,7.4L3.4,6l6,6l4-4l6.3,6.3L22,12v6H16z" />
+      </g>
+    </symbol>
+  </svg>
+
+  <div id="app"></div>
+
+  <div id="animation-container-1" class="tour-animation-container hide "
+    style="z-index:9999;position: absolute;bottom:0px;margin-bottom:110px;vertical-align:middle;width:100%">
+    <div id="Stage" class="EDGE-462912531 tour-animation"></div>
+  </div>
+  <div id="animation-container-2" class="tour-animation-container hide "
+    style="z-index:9999;position: absolute;bottom:0px;margin-bottom:110px;vertical-align:middle;width:100%">
+    <div id="Stage" class="EDGE-30904779 tour-animation"></div>
+  </div>
+
+  <script src="js/thirdparty/alertify.min.js"></script>
+  <script src="js/thirdparty/pageguide.js"></script>
+  <script src="js/thirdparty/edge.6.0.0.min.js"></script>
+  <script src="js/thirdparty/qs.js"></script>
+  <script src="js/thirdparty/buttonstrip.min.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <script src="app/third-party/iobio.js"></script>
+
+  <script src="app/third-party/lz-string.min.js"></script>
+  <script src="app/third-party/bam.js"></script>
+  <script src="app/third-party/bin.js"></script>
+  <script src="app/third-party/inflate.js"></script>
+  <script src="app/third-party/binary.js"></script>
+
+  <script src="app/third-party/jdataview.js"></script>
+  <script src="app/third-party/jparser.js"></script>
+  <script src="app/third-party/pako_deflate.min.js"></script>
+  <script src="app/third-party/jsbgzf.js"></script>
+  <script src="app/third-party/js-bv-sampling.js"></script>
+  <script src="app/third-party/js-local-vcf.js"></script>
+  <script src="app/third-party/js-bv-common.js"></script>
+  <script src="app/third-party/js-local-bam.js"></script>
+
+  <script src="dist/build.js"></script>
+</body>
+
+</html>
