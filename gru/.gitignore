@@ -1,0 +1,11 @@
+# Node binary
+node
+
+# Tool binaries
+tool_bin
+
+# Static volume
+static
+
+# Data volume
+data

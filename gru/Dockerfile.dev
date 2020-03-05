@@ -1,0 +1,32 @@
+# Linux alpine base image
+FROM alpine:3.9
+
+# Update packages
+RUN apk update
+
+# Install utils
+RUN apk add git build-base curl
+
+# Install node
+RUN apk add nodejs npm
+
+# Install python
+RUN apk add python python-dev
+
+RUN apk add py-pip
+
+RUN pip install nltk
+
+RUN python -m nltk.downloader -d /usr/share/nltk_data wordnet
+
+# Source code is in /app
+WORKDIR /app
+
+# Copy source code
+COPY . .
+
+# Install dependencies
+RUN make local_install
+
+# Run the app on port 9000
+CMD ["node", "src/index.js"]

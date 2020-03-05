@@ -2,13 +2,19 @@ version: '3.7'
 
 services:
 
-  # gru:
-  #   build:
-  #     dockerfile: Dockerfile.dev
-  #     context: ./gru
-  #   volumes:
-  #     - /app/node_modules
-  #     - ./server:/app
+  gru:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./gru
+    volumes:
+      - /app/node_modules
+      - /app/data
+      - /app/node
+      - /app/tool_bin
+      - /app/static
+      - ./gru:/app
+    ports:
+      - "9001:9001"
 
   gene:
     build:
