@@ -18,16 +18,7 @@ The entire container stack is configured via `docker-compose`.  Docker compose w
 - set up the local network
 - start the servers
 
-__NOTES:__
-
-Edit /etc/hosts to allow custom hosts.
-
-```bash
-# /etc/hosts
-127.0.0.1     gene.iobio gru.iobio
-```
-
-__Some apps may require additional configuration. Be sure to read each app's documentation.__
+__NOTE: Some apps may require additional configuration. Be sure to read each app's documentation.__
 
 ```bash
 # Start all services after app specific config has been completed

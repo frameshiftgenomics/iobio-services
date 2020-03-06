@@ -26,7 +26,7 @@ services:
       - /app/static
       - ./gru:/app
     labels:
-      - traefik.http.routers.gru.rule=Host(`gru.iobio`)
+      - traefik.http.routers.gru.rule=Host(`gru.localhost`)
 
   gene:
     build:
@@ -36,4 +36,4 @@ services:
       - /app/node_modules
       - ./gene:/app
     labels:
-      - traefik.http.routers.gene.rule=Host(`gene.iobio`)
+      - traefik.http.routers.gene.rule=Host(`gene.localhost`)
