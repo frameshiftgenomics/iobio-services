@@ -28,5 +28,8 @@ COPY . .
 # Install dependencies
 RUN make local_install
 
-# Run the app on port 9000
+# Expose port 9001
+EXPOSE 9001
+
+# Run the app on port 9001
 CMD ["node", "src/index.js"]
