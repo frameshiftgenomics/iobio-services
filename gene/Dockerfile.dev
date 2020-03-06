@@ -26,5 +26,8 @@ COPY . .
 # Define env vars
 ENV PORT 3000
 
+# Run express on port 3000
+EXPOSE 3000
+
 # Start the express server for local development with webpack running in the background
 CMD ["bin/local-dev.sh"]

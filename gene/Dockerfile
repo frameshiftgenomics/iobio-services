@@ -37,5 +37,5 @@ COPY ./client/app/third-party /usr/share/nginx/html/app/third-party
 # Copy client bundle from builder container
 COPY --from=builder /app/client/dist /usr/share/nginx/html/dist
 
-# Run nginx on port 3000
-EXPOSE 3000
+# Run nginx on port 80
+EXPOSE 80
