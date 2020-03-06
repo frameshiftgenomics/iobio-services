@@ -2,6 +2,18 @@ version: '3.7'
 
 services:
 
+  traefik:
+    image: traefik:v2.2
+    command:
+      - --entrypoints.web.address=:80
+      - --providers.docker
+      - --api.insecure
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
   gru:
     build:
       dockerfile: Dockerfile.dev
@@ -13,8 +25,8 @@ services:
       - /app/tool_bin
       - /app/static
       - ./gru:/app
-    ports:
-      - "9001:9001"
+    labels:
+      - traefik.http.routers.gru.rule=Host(`gru.iobio`)
 
   gene:
     build:
@@ -23,5 +35,5 @@ services:
     volumes:
       - /app/node_modules
       - ./gene:/app
-    ports:
-      - "3000:3000"
+    labels:
+      - traefik.http.routers.gene.rule=Host(`gene.iobio`)
