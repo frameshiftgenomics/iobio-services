@@ -11,3 +11,6 @@ npm-debug.log*
 
 # Environment variables files
 .env
+
+# TLS Certificates
+acme.json

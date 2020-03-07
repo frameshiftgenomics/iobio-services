@@ -27,6 +27,7 @@ services:
       - ./gru:/app
     labels:
       - traefik.http.routers.gru.rule=Host(`gru.localhost`)
+      - traefik.http.services.gru.loadbalancer.server.port=9001
 
   gene:
     build:
