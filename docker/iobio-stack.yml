@@ -17,7 +17,7 @@ services:
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --providers.docker
-      - --providers.docker.swarmMode
+      - --providers.docker.swarmmode=true
       - --providers.docker.network=proxy
       - --api
       - --certificatesresolvers.leresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
@@ -36,7 +36,7 @@ services:
           - node.role == manager
       labels:
         # Dashboard
-        - "traefik.http.routers.traefik.rule=Host(`traefik.docker.localhost`)"
+        - "traefik.http.routers.traefik.rule=Host(`traefik.frameshift.io`)"
         - "traefik.http.routers.traefik.service=api@internal"
         - "traefik.http.routers.traefik.tls.certresolver=leresolver"
         - "traefik.http.routers.traefik.entrypoints=websecure"
@@ -64,12 +64,12 @@ services:
         delay: 5s
         max_attempts: 3
       labels:
-        - traefik.http.routers.gene.rule=Host(`iobio.frameshift.io`)
-        - traefik.http.services.gene.loadbalancer.server.port=80
-        - traefik.http.routers.gene.tls=true
-        - traefik.http.routers.gene.tls.certresolver=leresolver
-        - traefik.http.routers.gene.tls.domains.main=frameshift.io
-        - traefik.http.routers.gene.tls.domains.sans=*.frameshift.io
+        - "traefik.http.routers.gene.rule=Host(`iobio.frameshift.io`)"
+        - "traefik.http.services.gene.loadbalancer.server.port=80"
+        - "traefik.http.routers.gene.tls=true"
+        - "traefik.http.routers.gene.tls.certresolver=leresolver"
+        - "traefik.http.routers.gene.tls.domains.main=frameshift.io"
+        - "traefik.http.routers.gene.tls.domains.sans=*.frameshift.io"
 
 networks:
   frontend:
