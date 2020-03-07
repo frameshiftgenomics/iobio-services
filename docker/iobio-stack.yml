@@ -10,7 +10,7 @@ version: '3.7'
 services:
 
   traefik:
-    image: traefik:v2.2
+    image: traefik:v2.1
     networks:
       - proxy
     command:
@@ -20,7 +20,7 @@ services:
       - --providers.docker.swarmMode
       - --providers.docker.network=proxy
       - --api
-      - --certificatesresolvers.leresolver.acme.caserver=https://acme-v02.api.letsencrypt.org/directory
+      - --certificatesresolvers.leresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
       - --certificatesresolvers.leresolver.acme.email=tcraig@frameshift.io
       - --certificatesresolvers.leresolver.acme.storage=/acme.json
       - --certificatesresolvers.leresolver.acme.tlschallenge=true
@@ -30,22 +30,23 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./acme.json:/acme.json
-    labels:
-      # Dashboard
-      - "traefik.http.routers.traefik.rule=Host(`traefik.docker.localhost`)"
-      - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.routers.traefik.tls.certresolver=leresolver"
-      - "traefik.http.routers.traefik.entrypoints=websecure"
-      - "traefik.http.routers.traefik.middlewares=authtraefik"
-      - "traefik.http.middlewares.authtraefik.basicauth.users=user:$$apr1$$q8eZFHjF$$Fvmkk//V6Btlaf2i/ju5n/" # user/password
+    deploy:
+      labels:
+        # Dashboard
+        - "traefik.http.routers.traefik.rule=Host(`traefik.docker.localhost`)"
+        - "traefik.http.routers.traefik.service=api@internal"
+        - "traefik.http.routers.traefik.tls.certresolver=leresolver"
+        - "traefik.http.routers.traefik.entrypoints=websecure"
+        - "traefik.http.routers.traefik.middlewares=authtraefik"
+        - "traefik.http.middlewares.authtraefik.basicauth.users=user:$$apr1$$q8eZFHjF$$Fvmkk//V6Btlaf2i/ju5n/" # user/password
 
-      # global redirect to https
-      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
-      - "traefik.http.routers.http-catchall.entrypoints=web"
-      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+        # global redirect to https
+        - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+        - "traefik.http.routers.http-catchall.entrypoints=web"
+        - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
 
-      # middleware redirect
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+        # middleware redirect
+        - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
 
   gene:
     image: frameshiftgenomics/iobio_gene:latest
@@ -59,12 +60,12 @@ services:
         condition: any
         delay: 5s
         max_attempts: 3
-    labels:
-      - traefik.http.routers.gene.rule=Host(`iobio.frameshift.io`)
-      - traefik.http.routers.gene.tls=true
-      - traefik.http.routers.gene.tls.certresolver=leresolver
-      - traefik.http.routers.gene.tls.domains.main=frameshift.io
-      - traefik.http.routers.gene.tls.domains.sans=*.frameshift.io
+      labels:
+        - traefik.http.routers.gene.rule=Host(`iobio.frameshift.io`)
+        - traefik.http.routers.gene.tls=true
+        - traefik.http.routers.gene.tls.certresolver=leresolver
+        - traefik.http.routers.gene.tls.domains.main=frameshift.io
+        - traefik.http.routers.gene.tls.domains.sans=*.frameshift.io
 
 networks:
   frontend:
