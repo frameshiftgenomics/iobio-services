@@ -1,55 +1,6 @@
-# A simple proxy using a single traefik container.
-#
-# - Automatic dynamic routing to services
-# - Listens on port 80 & 443
-# - Redirects port 80 -> 443
-# - Secure dashboard
-
 version: '3.7'
 
 services:
-
-  traefik:
-    image: traefik:v2.1
-    networks:
-      - proxy
-    command:
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --providers.docker
-      - --providers.docker.swarmmode=true
-      - --providers.docker.network=proxy
-      - --api
-      - --certificatesresolvers.leresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
-      - --certificatesresolvers.leresolver.acme.email=tcraig@frameshift.io
-      - --certificatesresolvers.leresolver.acme.storage=/acme.json
-      - --certificatesresolvers.leresolver.acme.tlschallenge=true
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./acme.json:/acme.json
-    deploy:
-      placement:
-        constraints:
-          - node.role == manager
-      labels:
-        # Dashboard
-        - "traefik.http.routers.traefik.rule=Host(`traefik.frameshift.io`)"
-        - "traefik.http.routers.traefik.service=api@internal"
-        - "traefik.http.routers.traefik.tls.certresolver=leresolver"
-        - "traefik.http.routers.traefik.entrypoints=websecure"
-        - "traefik.http.routers.traefik.middlewares=authtraefik"
-        - "traefik.http.middlewares.authtraefik.basicauth.users=user:$$apr1$$q8eZFHjF$$Fvmkk//V6Btlaf2i/ju5n/" # user/password
-
-        # global redirect to https
-        - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
-        - "traefik.http.routers.http-catchall.entrypoints=web"
-        - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
-
-        # middleware redirect
-        - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
 
   gene:
     image: frameshiftgenomics/iobio_gene:latest
@@ -57,20 +8,16 @@ services:
       - frontend
       - proxy
     deploy:
-      mode: replicated
       replicas: 1
-      restart_policy:
-        condition: any
-        delay: 5s
-        max_attempts: 3
       labels:
+        - "traefik.enable=true"
         - "traefik.http.routers.gene.rule=Host(`iobio.frameshift.io`)"
         - "traefik.http.services.gene.loadbalancer.server.port=80"
+        - "traefik.http.routers.gene.entrypoints=websecure"
         - "traefik.http.routers.gene.tls=true"
         - "traefik.http.routers.gene.tls.certresolver=leresolver"
 
 networks:
   frontend:
   proxy:
-    driver: overlay
-    name: proxy
+    external: true
