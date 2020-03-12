@@ -1,23 +1,52 @@
-version: '3.7'
+# Stack to deploy the iobio apps behind traefik on proxy network.
+#
+# - gene.iobio client app
+# - gru.iobio api
+#
+# See additional notes at end of file.
+
+# todo: path stripping
+
+version: "3.7"
 
 services:
 
   gene:
     image: frameshiftgenomics/iobio_gene:latest
     networks:
-      - frontend
       - proxy
     deploy:
       replicas: 1
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.gene.rule=Host(`iobio.frameshift.io`)"
-        - "traefik.http.services.gene.loadbalancer.server.port=80"
         - "traefik.http.routers.gene.entrypoints=websecure"
         - "traefik.http.routers.gene.tls=true"
         - "traefik.http.routers.gene.tls.certresolver=leresolver"
+        - "traefik.http.services.gene.loadbalancer.server.port=80"
+
+  gru:
+    image: frameshiftgenomics/iobio_gru:latest
+    networks:
+      - proxy
+    deploy:
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.gru.rule=Host(`iobio.frameshift.io`)"
+        - "traefik.http.routers.gru.entrypoints=websecure"
+        - "traefik.http.routers.gru.tls=true"
+        - "traefik.http.routers.gru.tls.certresolver=leresolver"
+        - "traefik.http.services.gru.loadbalancer.server.port=9001"
 
 networks:
-  frontend:
   proxy:
     external: true
+
+# Prerequisites - Must complete before launching stack
+
+# 1. Launch the traefik stack
+# 2. Replace example domains
+# 3. Replace docker images (optional)
+# 4. Deploy stack
+# $ docker stack deploy -c docker/iobio-stack.yml iobio

@@ -1,11 +1,11 @@
-# A simple proxy using a single traefik container
+# A simple proxy using a single traefik container.
 #
 # - Automatic dynamic routing to services
 # - Listens on port 80 & 443
 # - Redirects port 80 -> 443
 # - Secure dashboard
 #
-# See additional notes at end of file BEFORE launching stack
+# See additional notes at end of file.
 
 version: "3.7"
 
@@ -52,12 +52,12 @@ services:
         - "traefik.enable=true"
         # Dashboard
         - "traefik.http.routers.traefik.rule=Host(`traefik.frameshift.io`)"
-        - "traefik.http.services.traefik.loadbalancer.server.port=8080"
         - "traefik.http.routers.traefik.service=api@internal"
         - "traefik.http.routers.traefik.tls.certresolver=leresolver"
         - "traefik.http.routers.traefik.entrypoints=websecure"
         - "traefik.http.routers.traefik.middlewares=authtraefik"
         - "traefik.http.middlewares.authtraefik.basicauth.users=user:$$apr1$$q8eZFHjF$$Fvmkk//V6Btlaf2i/ju5n/" # user/password
+        - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
         # Global redirect to https
         - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
@@ -95,12 +95,3 @@ networks:
 # 6. Verify dashboard & TLS
 # The certificate should be issued by: CN=Fake LE Intermediate X1
 # Once everything is working, change to the Let's Encrypt production server: https://acme-v02.api.letsencrypt.org/directory
-
-# Dashboard (https://localhost:8080)
-# Route
-# Basic auth (login: user | password: password)
-# Let's Encrypt (https://traefik.frameshift.io/)
-# Global HTTP to HTTPS redirection (http://traefik.frameshift.io/)
-# Dashboard [api@internal]
-# Dashboard [api@internal] + Basic auth (login: user | password: password)
-# Dashboard [api@internal] + TLS (https://traefik.frameshift.io/)

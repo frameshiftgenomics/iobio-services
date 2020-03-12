@@ -29,10 +29,10 @@ docker-compose up
 
 | Service | Description | Host | Exposed Port |
 |---------|-------------|----- | -------------|
-| traefik | A load balancer to handle incoming web traffic and routing | http://localhost | 80 |
+| traefik | A reverse proxy to handle incoming web traffic, load balancing, and routing | http://localhost | 80 |
 | traefik dashboard | A services dashboard provided by traefik | http://localhost | 8080 |
-| gene | A client app for investigating potential disease-causing variants in real-time | [http://gene.iobio](http://gene.iobio) | 3000 |
-| gru | Iobio backend service | [http://gru.iobio](http://gru.iobio) | 9001 |
+| gene | A client app for investigating potential disease-causing variants in real-time | [http://gene.localhost](http://gene.localhost) | 3000 |
+| gru | Iobio backend service | [http://gru.localhost](http://gru.localhost) | 9001 |
 
 ```bash
 # Check running docker containers & ports:

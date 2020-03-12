@@ -1,10 +1,20 @@
+# Compose file for local development
+#
+# - proxy with dynamic routing & dashboard
+# - gene.iobio client app
+# - gru.iobio api
+
+# todo: strip prefix
+
 version: '3.7'
 
 services:
 
   traefik:
-    image: traefik:v2.2
+    image: traefik:v2.1
     command:
+      # - --api.debug=true
+      # - --log.level=ERROR
       - --entrypoints.web.address=:80
       - --providers.docker
       - --api.insecure
@@ -16,18 +26,18 @@ services:
 
   gru:
     build:
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
       context: ./gru
     volumes:
       - /app/node_modules
-      - /app/data
       - /app/node
       - /app/tool_bin
       - /app/static
       - ./gru:/app
+      - ./data:/app/data
     labels:
-      - traefik.http.routers.gru.rule=Host(`gru.localhost`)
-      - traefik.http.services.gru.loadbalancer.server.port=9001
+      - "traefik.http.routers.gru.rule=Host(`gru.localhost`)"
+      - "traefik.http.services.gru.loadbalancer.server.port=9001"
 
   gene:
     build:
@@ -37,4 +47,4 @@ services:
       - /app/node_modules
       - ./gene:/app
     labels:
-      - traefik.http.routers.gene.rule=Host(`gene.localhost`)
+      - "traefik.http.routers.gene.rule=Host(`gene.localhost`)"

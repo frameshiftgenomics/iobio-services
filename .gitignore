@@ -13,4 +13,7 @@ npm-debug.log*
 .env
 
 # TLS Certificates
-acme.json
+docker/letsencrypt/acme.json
+
+# Data directory for gru SQLite database
+data
