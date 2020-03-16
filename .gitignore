@@ -16,4 +16,4 @@ npm-debug.log*
 docker/letsencrypt/acme.json
 
 # Data directory for gru SQLite database
-data
+sqlite/data

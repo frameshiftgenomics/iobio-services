@@ -105,6 +105,7 @@ export default function PedigreeGenotypeChartD3() {
 
   let createRect = function(parent, d) {
     let nodeData = parent.data()[0]
+
     if (nodeData.zygosity == 'het') {
 
       parent.append("rect")
@@ -194,6 +195,9 @@ export default function PedigreeGenotypeChartD3() {
 
   let createAlleleCountBar = function(parent, position) {
     let nodeData = parent.data()[0]
+    if(isNaN(nodeData.altRatio)){
+        nodeData.altRatio = 1;
+    }
 
     if (nodeData.totalCount != null && nodeData.altCount != null) {
       let group = parent.append("g")
@@ -225,7 +229,7 @@ export default function PedigreeGenotypeChartD3() {
               }
            })
            .text(function(d,i) {
-              return nodeData.altCount + " of " + nodeData.totalCount
+              return nodeData.altCount + " alt " + (nodeData.totalCount-nodeData.altCount) + ' ref';
            })
     }
 
@@ -295,28 +299,32 @@ export default function PedigreeGenotypeChartD3() {
 
 
 
-    let father = parents.selectAll("g.father")
-                        .data([pedigreeData.father]);
+      if(pedigreeData.hasOwnProperty("father")){
+          let father = parents.selectAll("g.father")
+              .data([pedigreeData.father]);
 
-    father.enter()
-          .append("g")
-          .each( function(d,i) {
-            createNode(d3.select(this))
-            createAlleleCountBar(d3.select(this), "top")
-          })
+          father.enter()
+              .append("g")
+              .each( function(d,i) {
+                  createNode(d3.select(this))
+                  createAlleleCountBar(d3.select(this), "top")
+              })
+      }
 
 
-    let mother = parents.selectAll("g.mother")
-                        .data([pedigreeData.mother]);
 
-    mother.enter()
-          .append("g")
-          .attr("transform", "translate(" + ((nodeWidth + nodePadding)) + ",0" + ")")
-          .each( function(d,i) {
-            createNode(d3.select(this))
-            createAlleleCountBar(d3.select(this), "top")
-          })
+    if(pedigreeData.hasOwnProperty("mother")){
+        let mother = parents.selectAll("g.mother")
+            .data([pedigreeData.mother]);
 
+        mother.enter()
+            .append("g")
+            .attr("transform", "translate(" + ((nodeWidth + nodePadding)) + ",0" + ")")
+            .each( function(d,i) {
+                createNode(d3.select(this))
+                createAlleleCountBar(d3.select(this), "top")
+            })
+    }
 
 
     let parentLines = parents.selectAll("g.parent-lines")

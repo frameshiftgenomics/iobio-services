@@ -11,7 +11,9 @@
     font-size: 12px
 
 
-  .refalt
+
+
+    .refalt
     max-width: 200px
     white-space: normal
     display: inline-block
@@ -192,19 +194,23 @@
         i.material-icons
           color: $link-color !important
 
+  .variant-action-button-dbSnp
+      color: rgb(113,113,113)
+      font-size: 13px
+      padding-left: 0
+      padding-right: 15px
+      height: 22px !important
+      margin: 0px
+      min-width: 110px !important
+      max-width: 110px
+      font-weight: 500
 
+      .btn__content, .v-btn__content
+          padding-right: 8px
+          font-size: 12px
 
-
-  .change-transcript-button
-    max-height: 14px
-    padding: 0px
-    margin: 0px
-    color: $link-color
-    line-height: 14px
-    vertical-align: top
-
-    .v-btn__content
-      font-size: 12px
+          i.material-icons
+              color: $link-color !important
 
 
 
@@ -323,13 +329,19 @@
       <v-badge class="info" style="margin-top:2px;margin-right:10px" v-if="selectedVariant && selectedVariant.multiallelic && selectedVariant.multiallelic.length > 0">multiallelic</v-badge>
 
 
-        <span>
-            <v-btn flat v-if="info && info.rsId && info.rsId != ''"
-                                 class="variant-action-button"  @click="launchDbSnp">
-               <v-icon>open_in_new</v-icon>
-               {{info.rsId}}
-              </v-btn>
-        </span>
+        <!--<span>-->
+            <!--<v-btn flat dense small v-if="info && info.rsId && info.rsId != ''"-->
+                                 <!--class="variant-action-button-dbSnp"  @click="launchDbSnp">-->
+                               <!--{{info.rsId}}-->
+               <!--<v-icon>open_in_new</v-icon>-->
+              <!--</v-btn>-->
+        <!--</span>-->
+
+        <div v-if="info && info.rsId" style="display: inline-flex; padding-right:20px; font-size:14px; line-height:15px; padding-top: 5px; font-weight: 100"> {{info.rsId}}
+        <a  v-bind:href="info.dbSnpUrl" target="ClinVar" style="padding-left: 4px;">
+            <i aria-hidden="true" class="v-icon link-icon material-icons theme--light" style="font-size: 15px;color: #30638e;">open_in_new</i>
+        </a>
+        </div>
 
       <app-icon
        style="min-width:35px;margin-top:1px;margin-right:5px;padding-top: 2px;margin-right:10px"
@@ -732,10 +744,6 @@ export default {
     },
 
 
-      launchDbSnp(){
-          let url = this.info.dbSnpUrl;
-          window.open(url, '_blank');
-      },
 
     formatPopAF: function(afObject) {
       let self = this;
@@ -1024,7 +1032,6 @@ export default {
         }
 
       })
-      console.log(thePedigreeGenotypeData)
       self.$set(self, "pedigreeGenotypeData", thePedigreeGenotypeData);
       if (self.$refs.pedigreeGenotypeViz) {
         self.$refs.pedigreeGenotypeViz.update();
@@ -1208,8 +1215,6 @@ export default {
       let self = this;
       let tooltip = d3.select("#exon-tooltip");
 
-      console.log("showExonToolTip VariantInspectCard");
-
         if (featureObject == null) {
         self.hideExonTooltip();
         return;
@@ -1259,8 +1264,6 @@ export default {
       tooltip.style("left", coord.x + "px")
              .style("text-align", 'left')
              .style("top", (coord.y-60) + "px");
-
-      console.log("coord inside VariantInspectCard", coord);
 
       tooltip.style("z-index", 1032);
       tooltip.transition()
@@ -1489,13 +1492,12 @@ export default {
   },
 
   watch: {
+
     selectedVariant: function() {
       this.$nextTick(function() {
         this.loadData();
       })
     },
-
-
   },
 
   filters: {

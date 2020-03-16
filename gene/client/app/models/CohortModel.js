@@ -288,7 +288,6 @@ class CohortModel {
         return modelInfo.relationship != 'sibling';
       });
 
-
       self.sampleModels = [];
       self.flaggedVariants = [];
       self.genesInProgress = [];
@@ -742,7 +741,13 @@ class CohortModel {
   }
 
   getModel(relationship) {
-    return this.sampleMap[relationship].model;
+//todo: refactor to handle all cases of duo, not just a missing parent
+      if(this.sampleMap.hasOwnProperty(relationship)) {
+        return this.sampleMap[relationship].model;
+      }
+      else{
+        return this.sampleMap["proband"];
+      }
   }
 
   getCanonicalModels() {
@@ -2279,13 +2284,13 @@ class CohortModel {
     return variant;
 
   }
-  
+
   importFlaggedVariants(fileType, data, callbackPostImport, callbackPostAnalyze) {
     var me = this;
     me.flaggedVariants = [];
 
     var isObject = function(val) {
-      if (val === null) { 
+      if (val === null) {
         return false;
       } else {
         return ( (typeof val === 'function') || (typeof val === 'object') );
@@ -2315,7 +2320,7 @@ class CohortModel {
     var promises = []
 
     importRecords.forEach( function(ir) {
-    
+
 
       // Workaround.  variant.gene sometimes an
       // object, sometimes a gene name.  Other times
@@ -2330,15 +2335,15 @@ class CohortModel {
       } else {
         if (ir.gene && isObject(ir.gene)) {
           ir.gene  = ir.gene.gene_name;
-        } 
+        }
       }
 
       if (ir.gene == null) {
         console.log("Bypassing import record. Unable to find gene on imported variant ")
         console.log(ir)
       } else {
-        let geneObject = me.geneModel.geneObjects[ir.gene];
-        if (geneObject == null || !ir.transcript || ir.transcript == '') {
+        var theGeneObject = me.geneModel.geneObjects[ir.gene];
+        if (theGeneObject == null || !ir.transcript || ir.transcript == '') {
           var promise = me.geneModel.promiseGetCachedGeneObject(ir.gene, true)
           .then(function(theGeneObject) {
             if (theGeneObject.notFound) {
@@ -2346,7 +2351,7 @@ class CohortModel {
             }
           })
           promises.push(promise);
-        }        
+        }
       }
 
 
@@ -2374,7 +2379,7 @@ class CohortModel {
             theVariants = [];
             genesToAnalyze[analyzeKind][variant.gene.gene_name] = theVariants;
           }
-          theVariants.push(variant);          
+          theVariants.push(variant);
         })
 
       });
@@ -2395,7 +2400,7 @@ class CohortModel {
         }
       }
 
-     
+
 
 
       if (me.isLoaded) {
@@ -2502,7 +2507,7 @@ class CohortModel {
 
                           // For every gene, we will analyze the coverage across the exons
                           // NOTE:  This is an expensive operation!
-                          
+
                           //me.promiseLoadCoverage(geneObject, transcript)
                           //.then(function() {
                           //  resolve();
@@ -2719,7 +2724,7 @@ class CohortModel {
       this.flaggedVariants.forEach(function(variant) {
         let isReviewed = (variant.notes && variant.notes.length > 0) ||
             (variant.interpretation != null && (variant.interpretation == "sig" || variant.interpretation == "unknown-sig" || variant.interpretation == "not-sig" || variant.interpretation == "poor-qual"));
-       
+
 
         let matches = false;
         if (filterName == 'reviewed' && isReviewed) {
@@ -2734,7 +2739,7 @@ class CohortModel {
 
 
         if (matches) {
-        
+
           let keepVariant = interpretationFilters && interpretationFilters.length > 0 ? interpretationFilters.indexOf(variant.interpretation ? variant.interpretation : 'not-reviewed') >= 0 : true;
 
           let flaggedGene = geneMap[variant.gene.gene_name];
