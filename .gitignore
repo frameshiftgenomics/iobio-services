@@ -9,11 +9,11 @@ npm-debug.log*
 .idea
 .vscode
 
-# Environment variables files
+# Environment variable files
 .env
 
 # TLS Certificates
-docker/letsencrypt/acme.json
+letsencrypt
 
 # Data directory for gru SQLite database
 sqlite/data

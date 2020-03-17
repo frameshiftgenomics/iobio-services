@@ -32,7 +32,7 @@ services:
       - --api=true
       # TLS - Configure the tls letsencrypt challenge with our custom resolver
       # Replace with your letsencrypt email
-      - --certificatesresolvers.leresolver.acme.email=tcraig@frameshift.io
+      - --certificatesresolvers.leresolver.acme.email=info@frameshift.io
       - --certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.leresolver.acme.tlschallenge=true
       # Comment out this line after testing to use the production server and obtain a valid certificate
@@ -42,7 +42,7 @@ services:
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./letsencrypt:/letsencrypt
+      - ../letsencrypt:/letsencrypt
     deploy:
       replicas: 1
       placement:
@@ -85,9 +85,9 @@ networks:
 
 # 4. Create file to hold letsencrypt certs
 
-# $ cd docker
 # $ mkdir letsencrypt
-# $ touch letsencrypt/acme.json && chmod 600 letsencrypt/acme.json
+# $ touch letsencrypt/acme.json
+# $ chmod 600 letsencrypt/acme.json
 
 # 5. Launch stack
 # $ docker stack deploy -c docker/traefik-stack.yml traefik
