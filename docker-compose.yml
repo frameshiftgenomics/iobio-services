@@ -29,7 +29,6 @@ services:
     privileged: true
     volumes:
       - /app/node_modules
-      - /app/node
       - /app/tool_bin
       - /app/static
       - ./gru:/app
