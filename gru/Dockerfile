@@ -3,7 +3,7 @@ FROM ubuntu:18.04
 
 # Update & upgrade packages
 RUN apt-get update && \
-    active apt-get -y upgrade
+    apt-get -y upgrade
 
 # Install dependencies
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \

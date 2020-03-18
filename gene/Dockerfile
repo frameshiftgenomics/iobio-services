@@ -23,7 +23,7 @@ RUN npm run build
 FROM nginx
 
 # Copy nginx config
-COPY ./nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY ./nginx/nginx.conf /etc/nginx/nginx.conf
 
 # Copy index.html & favicon for nginx root directive
 COPY ./server/views /usr/share/nginx/html
