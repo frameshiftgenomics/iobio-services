@@ -4,9 +4,7 @@
 # - gene.iobio client app
 # - gru.iobio api
 
-# todo: strip prefix
-
-version: '3.7'
+version: "3.7"
 
 services:
 
@@ -28,6 +26,7 @@ services:
     build:
       dockerfile: Dockerfile
       context: ./gru
+    privileged: true
     volumes:
       - /app/node_modules
       - /app/node
