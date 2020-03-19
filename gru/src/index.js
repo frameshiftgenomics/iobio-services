@@ -512,4 +512,10 @@ app
   }))
   .use(router.routes())
   .use(router.allowedMethods())
-  .listen(port);
+  .listen(port, '0.0.0.0', onListening);
+
+function onListening () {
+  const { address, port } = this.address();
+  const protocol = this.addContext ? 'https' : 'http';
+  console.log(`Listening on ${protocol}://${address}:${port}`);
+}

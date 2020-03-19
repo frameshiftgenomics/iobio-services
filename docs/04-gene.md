@@ -19,7 +19,7 @@ cp .env.template .env
 
 __NOTES:__
 
-- Point the backend url to be `gene.localhost` for local development.
+- Point the backend url to be `gru.localhost` for local development.
 - Append the backend url with `/api` to proxy all requests to the backend in production. The proxy will strip the prefix automatically.
 
 ### Production

@@ -79,6 +79,19 @@ touch letsencrypt/acme.json
 chmod 600 letsencrypt/acme.json
 ```
 
+### Verify data volume is populated
+
+```
+sqlite/data/
+├── gene2pheno
+├── geneinfo
+├── genomebuild
+├── gnomad_header.txt
+├── md5_reference_cache
+├── references
+└── vep-cache
+```
+
 ### Launch stacks
 
 ```bash

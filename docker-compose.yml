@@ -32,7 +32,7 @@ services:
       - /app/tool_bin
       - /app/static
       - ./gru:/app
-      - ./sqlite/data:/app/data
+      - ./sqlite/data:/app/data:ro
     labels:
       - "traefik.http.routers.gru.rule=Host(`gru.localhost`)"
       - "traefik.http.services.gru.loadbalancer.server.port=9001"

@@ -5,8 +5,6 @@
 #
 # See additional notes at end of file.
 
-# todo: path stripping
-
 version: "3.7"
 
 services:
@@ -29,14 +27,20 @@ services:
     image: frameshiftgenomics/iobio_gru:latest
     networks:
       - proxy
+    volumes:
+        - ../sqlite/data:/app/data
     deploy:
-      replicas: 1
+      replicas: 2
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.gru.rule=Host(`iobio.frameshift.io`)"
+        - "traefik.http.routers.gru.rule=Host(`iobio.frameshift.io`) && PathPrefix(`/api/`)"
         - "traefik.http.routers.gru.entrypoints=websecure"
         - "traefik.http.routers.gru.tls=true"
         - "traefik.http.routers.gru.tls.certresolver=leresolver"
+        - "traefik.http.routers.gru.middlewares=strip-api-prefix,gru-compress"
+        - "traefik.http.middlewares.strip-api-prefix.stripprefix.prefixes=/api"
+        - "traefik.http.middlewares.strip-api-prefix.stripprefix.forceslash=false"
+        - "traefik.http.middlewares.gru-compress.compress=true"
         - "traefik.http.services.gru.loadbalancer.server.port=9001"
 
 networks:
@@ -46,7 +50,7 @@ networks:
 # Prerequisites - Must complete before launching stack
 
 # 1. Launch the traefik stack
-# 2. Replace example domains
-# 3. Replace docker images (optional)
+# 2. Replace example frameshift domains
+# 3. Replace frameshift docker images
 # 4. Deploy stack
 # $ docker stack deploy -c docker/iobio-stack.yml iobio
