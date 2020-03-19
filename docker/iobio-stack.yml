@@ -25,6 +25,7 @@ services:
 
   gru:
     image: frameshiftgenomics/iobio_gru:latest
+    privileged: true
     networks:
       - proxy
     volumes:
