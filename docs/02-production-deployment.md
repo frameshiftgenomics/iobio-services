@@ -35,7 +35,9 @@ All iobio applications run behind a reverse proxy called [traefik](https://docs.
 
 ### Boot up a machine using any cloud provider.
 
-We'll use an ubuntu machine. Once the machine is running, add a new DNS record with your desired domains.
+- The example uses an ubuntu machine
+- Machine will need a large volume ~120GB
+- Once the machine is running, configure DNS records
 
 See the following notes for setting up AWS infrastructure:
 
