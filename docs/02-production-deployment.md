@@ -6,50 +6,34 @@ There are numerous approaches to running docker workloads in the cloud:
 - Managed container services in AWS, GCP, Azure, etc
 - docker swarm
 - docker run
+- docker-compose
 
-For simplicity and getting up and running quickly, docker stacks are included to be run on docker swarm.
-
-### Docker Swarm
-
-[https://docs.docker.com/engine/swarm/](https://docs.docker.com/engine/swarm/)
+For simplicity and getting up and running quickly, a docker-compose file has been included to run in production. Additionally, docker-compose supports running containers with the `--privileged` flag, which is a requirement for the gru backend.
 
 The following steps provide instructions to run the entire stack in the cloud.
 
-### Stack architecture
+### Architecture
 
-All iobio applications run behind a reverse proxy called [traefik](https://docs.traefik.io/). Traefik acts as a stateless edge router that automatically routes traffic to the docker services. The docker services run on an internal docker swarm overlay network, and are not accessible via the public internet. Traefik also handles TLS using Let's Encrypt to generate certificates that automatically renew.
+All iobio applications run behind a reverse proxy called [traefik](https://docs.traefik.io/). Traefik acts as a stateless edge router that automatically routes traffic to the docker services. The docker services run on an internal docker bridge network, and are not accessible via the public internet. Traefik also handles TLS using Let's Encrypt to generate certificates that automatically renew.
 
-### Traefik stack overview
+### Services overview
 
-| Service | Description | Host | Exposed Port (to public internet) |
+| Service | Description | Host | Exposed Port |
 |---------|-------------|----- | -------------|
-| traefik | A reverse proxy to handle incoming web traffic, load balancing, and routing | https://traefik.frameshift.io | 80, 443 |
-| secure traefik dashboard | A services dashboard provided by traefik | https://traefik.frameshift.io | 80, 443 |
+| traefik | A reverse proxy to handle incoming web traffic, load balancing, and routing | https://traefik.frameshift.io | 80, 443 (public internet)|
+| secure traefik dashboard | A services dashboard provided by traefik | https://traefik.frameshift.io | 80, 443 (public internet)|
+| gene | A client app for investigating potential disease-causing variants in real-time | [https://gene.frameshift.io](https://gene.frameshift.io) | 80 (internal network) |
+| gru | Iobio backend service | [https://gene.frameshift.io/api](https://gene.frameshift.io/api) | 9001 (internal network) |
 
-### Iobio stack overview
+### Boot up a machine
 
-| Service | Description | Host | Exposed Port (on proxy network) |
-|---------|-------------|----- | -------------|
-| gene | A client app for investigating potential disease-causing variants in real-time | [https://gene.frameshift.io](https://gene.frameshift.io) | 80 |
-| gru | Iobio backend service | [https://gene.frameshift.io/api](https://gene.frameshift.io/api) | 9001 |
-
-### Boot up a machine using any cloud provider.
-
-- The example uses an ubuntu machine
-- Machine will need a large volume ~120GB
+- Ubuntu is the recommended OS
+- Machine will need a large root device volume ~120GB
 - Once the machine is running, configure DNS records
 
-See the following notes for setting up AWS infrastructure:
+Customize the infrasturcture to your liking.
 
-[https://docs.docker.com/docker-for-aws/faqs/#recommended-vpc-and-subnet-setup](https://docs.docker.com/docker-for-aws/faqs/#recommended-vpc-and-subnet-setup)
-
-A note on firewalls:
-
-[https://docs.docker.com/engine/swarm/ingress/](https://docs.docker.com/engine/swarm/ingress/)
-
-Customize infrasturcture to your liking.
-
-### Install docker
+### Install docker & docker-compose
 
 ```bash
 # install docker
@@ -59,18 +43,13 @@ apt-get update
 apt-cache policy docker-ce
 apt-get install -y docker-ce
 
+# install docker-compose
+sudo curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+
 # add ubuntu user to docker group
 usermod -aG docker ubuntu
-```
-
-### Initialize Docker swarm
-
-```bash
-# initialize a new swarm
-docker swarm init
-
-# verify swarm mode
-docker info
 ```
 
 ### Make file to hold TLS certs
@@ -94,26 +73,19 @@ sqlite/data/
 └── vep-cache
 ```
 
-### Launch stacks
+### Launch
 
 ```bash
-# launch reverse proxy
-docker stack deploy -c docker/traefik-stack.yml traefik
-# launch iobio apps
-docker stack deploy -c docker/iobio-stack.yml iobio
+# launch in detached mode
+docker-compose -f docker-compose-prod.yml up -d
 
 # verify services
-docker service ls
+docker ps
 
 # check service logs
-docker service logs <service-name>
+docker container logs <container-name>
 ```
 
 ### Additional configuration
 
-This guide is a starter guide to get you up and running quickly. There are many improvements that should be added including but not limited to:
-
-- additional nodes to the docker swarm cluster for added redundency
-- distributed logging
-- distributed volumes
-- swarm management & maintenance
+This guide is a starter guide to get you up and running quickly. There are many improvements that could be added.

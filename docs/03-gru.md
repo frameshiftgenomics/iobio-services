@@ -34,3 +34,16 @@ sqlite/data/
 ### Docs
 
 Read the full docs at [https://github.com/iobio/iobio-gru-backend](https://github.com/iobio/iobio-gru-backend)
+
+### NOTE: Deviations from the source code
+
+Gru was intended to be run on Linux, but with Docker, gru can be run on multiple different operating systems. A few files have been added to implement Docker, but for the most part, the source code was not changed.
+
+In order to get around an issue with installing Node.js in Docker, a slight modification was made in:
+
+```bash
+# see file for details
+gru/Makefile
+```
+
+If you intend to install gru without Docker, then feel free to follow the steps in the gru README.

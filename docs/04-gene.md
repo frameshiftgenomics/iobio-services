@@ -14,7 +14,6 @@ Gene.iobio is a client application for investigating potential disease-causing v
 ```bash
 # create client env file, edit as necessary
 cp .env.template .env
-
 ```
 
 __NOTES:__
