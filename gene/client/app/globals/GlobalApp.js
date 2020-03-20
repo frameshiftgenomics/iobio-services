@@ -93,7 +93,7 @@ class GlobalApp {
 
     if (process.env.USE_SSL) {
       this.useSSL = process.env.USE_SSL === 'true' ? true : false;
-    }
+    } 
 
     // These are the public services. 
     if (launchedFromMosaic) {
@@ -202,3 +202,4 @@ class GlobalApp {
 }
 
 export default GlobalApp
+

@@ -3,7 +3,8 @@
 ```bash
 # replace iobio-backend with the url of the gru backend service.
 # replace iobio-backend-mosaic with the url of the gru backend service when launching from mosaic
-echo "IOBIO_URL=iobio-url" > .env	echo "IOBIO_BACKEND=iobio-backend-mosaic" > .env
+
+echo "IOBIO_BACKEND=iobio-backend-mosaic" > .env
 echo "IOBIO_BACKEND_MOSAIC=iobio-backend-mosaic" >> .env
 echo "USE_SSL=true" >> .env
 ```

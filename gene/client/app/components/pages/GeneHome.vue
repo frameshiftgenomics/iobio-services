@@ -177,6 +177,7 @@ main.content.clin, main.v-content.clin
       :isEduMode="isEduMode"
       :isBasicMode="isBasicMode"
       :forMyGene2="forMyGene2"
+      :isSimpleMode="isSimpleMode"
       :analyzeAllInProgress="cacheHelper.analyzeAllInProgress"
       :callAllInProgress="cacheHelper.callAllInProgress"
       :selectedGene="selectedGene"
@@ -249,10 +250,12 @@ main.content.clin, main.v-content.clin
         </modal>
 
 
-        <intro-card v-if="forMyGene2"
+        <intro-card v-if="showIntro"
         class="full-width"
         :closeIntro="closeIntro"
         :isBasicMode="isBasicMode"
+        :forMyGene2="forMyGene2"
+        :isSimpleMode="isSimpleMode"
         :siteConfig="siteConfig"
         :defaultingToDemoData="cohortModel ? cohortModel.defaultingToDemoData : false"
         @on-advanced-mode="onAdvancedMode"
@@ -311,6 +314,7 @@ main.content.clin, main.v-content.clin
           :cohortModel="cohortModel"
           :isEduMode="isEduMode"
           :isBasicMode="isBasicMode"
+          :isSimpleMode="isSimpleMode"
           :isFullAnalysis="isFullAnalysis"
           :launchedFromClin="launchedFromClin"
           :launchedFromHub="launchedFromHub"
@@ -334,6 +338,7 @@ main.content.clin, main.v-content.clin
         :globalAppProp="globalApp"
         :isEduMode="isEduMode"
         :isBasicMode="isBasicMode"
+        :isSimpleMode="isSimpleMode"
         :clearZoom="clearZoom"
         :sampleModel="probandModel"
         :coverageDangerRegions="probandModel.coverageDangerRegions"
@@ -409,6 +414,7 @@ main.content.clin, main.v-content.clin
           <variant-inspect-card
           ref="variantInspectRef"
           v-if="cohortModel && cohortModel.isLoaded && !isBasicMode && !isEduMode"
+          :isSimpleMode="isSimpleMode"
           :selectedGene="selectedGene"
           :selectedTranscript="analyzedTranscript"
           :selectedVariant="selectedVariant"
@@ -841,6 +847,14 @@ export default {
       forMyGene2: false,
 
 
+      /*
+      * This variable controls if gene should show a "simplified" view
+      */
+      isSimpleMode: process.env.DEFAULT_MODE == 'simple' ? true : false,
+
+      showIntro: false,
+
+
       closeIntro: false,
 
       phenotypeTerm: null,
@@ -849,7 +863,7 @@ export default {
 
       showCoverageCutoffs: false,
 
-      clinIobioUrls: ["http://localhost:4030", "http://tony.iobio.io:4030", "http://clin.iobio.io", "https://clin.iobio.io", "https://dev.clin.iobio.io", "http://dev.clin.iobio.io", "https://stage.clin.iobio.io/"],
+      clinIobioUrls: ["http://localhost:4030", "http://tony.iobio.io:4030", "http://clin.iobio.io", "https://clin.iobio.io", "https://dev.clin.iobio.io", "http://dev.clin.iobio.io", "https://stage.clin.iobio.io"],
       clinIobioUrl: "https://clin.iobio.io",
 
       forceLocalStorage: null,
@@ -1109,7 +1123,7 @@ export default {
         self.inProgress = self.cohortModel.inProgress;
 
 
-        self.featureMatrixModel = new FeatureMatrixModel(self.globalApp, self.cohortModel, self.isEduMode, self.isBasicMode, self.tourNumber);
+        self.featureMatrixModel = new FeatureMatrixModel(self.globalApp, self.cohortModel, self.isEduMode, self.isBasicMode, self.isSimpleMode, self.tourNumber);
         self.featureMatrixModel.init();
         self.cohortModel.featureMatrixModel = self.featureMatrixModel;
 
@@ -1152,7 +1166,7 @@ export default {
                   self.bringAttention = 'gene';
                 }
 
-                if (!self.isEduMode && !self.isBasicMode && !self.launchedFromHub && !self.launchedFromClin && !self.launchedWithUrlParms && self.geneModel.sortedGeneNames.length == 0 ) {
+                if (!self.isEduMode && !self.isBasicMode && !self.isSimpleMode && !self.launchedFromHub && !self.launchedFromClin && !self.launchedWithUrlParms && self.geneModel.sortedGeneNames.length == 0 ) {
                   self.showWelcome = true;
                 }
               }
@@ -2450,6 +2464,9 @@ export default {
         self.isBasicMode  = self.paramMode == "basic" ? true : false;
         self.isEduMode    = (self.paramMode == "edu" || self.paramMode == "edutour") ? true : false;
       }
+      
+      self.showIntro = self.forMyGene2 || process.env.SHOW_INTRO;
+
       if (self.paramSampleId && self.paramSampleId.length > 0) {
         self.sampleId = self.paramSampleId;
       } else if (self.paramSampleUuid && self.paramSampleUuid.length > 0) {
