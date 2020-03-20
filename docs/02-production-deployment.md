@@ -64,6 +64,7 @@ chmod 600 letsencrypt/acme.json
 
 ```
 sqlite/data/
+├── data
 ├── gene2pheno
 ├── geneinfo
 ├── genomebuild

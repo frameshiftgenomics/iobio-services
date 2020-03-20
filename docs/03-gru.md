@@ -22,6 +22,7 @@ Follow the [full setup instructions](https://github.com/iobio/iobio-gru-backend/
 
 ```
 sqlite/data/
+├── data
 ├── gene2pheno
 ├── geneinfo
 ├── genomebuild
