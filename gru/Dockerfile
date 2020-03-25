@@ -48,6 +48,9 @@ RUN wget -nv https://github.com/sylabs/singularity/releases/download/v${SINGULAR
     make -C builddir && \
     make -C builddir install
 
+# Add /app as a bind path so singularity containers can access /app/data
+ENV SINGULARITY_BIND="/app"
+
 # Install Node.js 12 LTS
 ENV NODE_VERSION=12.x
 
