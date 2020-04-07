@@ -12,7 +12,6 @@
 version: "3.7"
 
 services:
-
   traefik:
     image: traefik:v2.1
     networks:
@@ -34,11 +33,11 @@ services:
       - --api=true
       # TLS - Configure the tls letsencrypt challenge with our custom resolver
       # Replace with your letsencrypt email
-      - --certificatesresolvers.leresolver.acme.email=info@frameshift.io
+      - --certificatesresolvers.leresolver.acme.email=crab@nebula.org
       - --certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.leresolver.acme.tlschallenge=true
       # Comment out this line after testing to use the production server and obtain a valid certificate
-      - --certificatesresolvers.leresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
+      # - --certificatesresolvers.leresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
     ports:
       - "80:80"
       - "443:443"
@@ -48,12 +47,12 @@ services:
     labels:
       - "traefik.enable=true"
       # Dashboard
-      - "traefik.http.routers.traefik.rule=Host(`traefik.frameshift.io`)"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.nebula.org`)"
       - "traefik.http.routers.traefik.service=api@internal"
       - "traefik.http.routers.traefik.tls.certresolver=leresolver"
       - "traefik.http.routers.traefik.entrypoints=websecure"
       - "traefik.http.routers.traefik.middlewares=authtraefik"
-      - "traefik.http.middlewares.authtraefik.basicauth.users=user:$$apr1$$q8eZFHjF$$Fvmkk//V6Btlaf2i/ju5n/" # user/password
+      - "traefik.http.middlewares.authtraefik.basicauth.users=nebula_admin:$$apr1$$MnmE3sKE$$1HICSQx95gmlR0EsdplEG0" # user/password
       - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
       # Global redirect to https
@@ -64,29 +63,35 @@ services:
       # Middleware redirect
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+    restart: always
 
   gene:
-    image: frameshiftgenomics/iobio_gene:latest
+    image: nebulagenomics/iobio_gene:latest
+    build:
+      context: ./gene
     networks:
       - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.gene.rule=Host(`iobio.frameshift.io`)"
+      - "traefik.http.routers.gene.rule=Host(`gene.nebula.org`)"
       - "traefik.http.routers.gene.entrypoints=websecure"
       - "traefik.http.routers.gene.tls=true"
       - "traefik.http.routers.gene.tls.certresolver=leresolver"
       - "traefik.http.services.gene.loadbalancer.server.port=80"
+    restart: always
 
   gru:
-    image: frameshiftgenomics/iobio_gru:latest
+    image: nebulagenomics/iobio_gru:latest
+    build:
+      context: ./gru
     privileged: true
     networks:
       - proxy
     volumes:
-        - ./sqlite/data:/app/data
+      - ./sqlite/data:/app/data
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.gru.rule=Host(`iobio.frameshift.io`) && PathPrefix(`/api/`)"
+      - "traefik.http.routers.gru.rule=Host(`gene.nebula.org`) && PathPrefix(`/api/`)"
       - "traefik.http.routers.gru.entrypoints=websecure"
       - "traefik.http.routers.gru.tls=true"
       - "traefik.http.routers.gru.tls.certresolver=leresolver"
@@ -95,12 +100,12 @@ services:
       - "traefik.http.middlewares.strip-api-prefix.stripprefix.forceslash=false"
       - "traefik.http.middlewares.gru-compress.compress=true"
       - "traefik.http.services.gru.loadbalancer.server.port=9001"
+    restart: always
 
 networks:
   proxy:
     driver: bridge
     name: proxy
-
 # Prerequisites - Must complete before launching stack
 
 # 1. Replace email in config above to a valid email

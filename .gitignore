@@ -11,6 +11,7 @@ npm-debug.log*
 
 # Environment variable files
 .env
+.env.local
 
 # TLS Certificates
 letsencrypt
