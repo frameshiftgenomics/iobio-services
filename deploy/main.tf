@@ -2,10 +2,9 @@
 # https://www.terraform.io/docs/state/remote.html
 terraform {
   backend "s3" {
-    bucket  = "nebula-terraform-state"
-    key     = "iobio.tfstate"
-    region  = "us-east-1"
-    encrypt = true
+    bucket = "nebula-terraform-state"
+    key    = "iobio.tfstate"
+    region = "us-east-1"
   }
 }
 
@@ -20,8 +19,8 @@ provider "aws" {
 #   cidr_block = "10.0.0.0/16"
 # }
 
-resource "aws_instance" "web" {
-  ami           = "ami-0fc20dd1da406780b"
+resource "aws_instance" "iobio" {
+  ami           = "ami-07ebfd5b3428b6f4d"
   instance_type = "m5.2xlarge"
 
   tags = {
