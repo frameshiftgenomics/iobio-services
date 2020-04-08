@@ -20,8 +20,9 @@ provider "aws" {
 # }
 
 resource "aws_instance" "iobio" {
-  ami           = "ami-07ebfd5b3428b6f4d"
-  instance_type = "m5.2xlarge"
+  ami                  = "ami-07ebfd5b3428b6f4d"
+  instance_type        = "m5.2xlarge"
+  iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 
   root_block_device {
     volume_type = "gp2"
@@ -74,4 +75,9 @@ resource "aws_iam_policy" "s3_read_access" {
 resource "aws_iam_role_policy_attachment" "attach_role" {
   role       = aws_iam_role.instance.name
   policy_arn = aws_iam_policy.s3_read_access.arn
+}
+
+resource "aws_iam_instance_profile" "instance_profile" {
+  name = "AmazonS3FullAccessForEC2IobioInstanceProfile"
+  role = aws_iam_role.instance.name
 }
