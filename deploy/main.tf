@@ -1,3 +1,14 @@
+# Use an S3 bucket to store terraform state remotely.
+# https://www.terraform.io/docs/state/remote.html
+terraform {
+  backend "s3" {
+    bucket  = "nebula-terraform-state"
+    key     = "iobio.tfstate"
+    region  = "us-east-1"
+    encrypt = true
+  }
+}
+
 # Configure the AWS Provider
 provider "aws" {
   version = "~> 2.0"
