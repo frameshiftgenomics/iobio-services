@@ -19,6 +19,8 @@ export default function geneD3() {
   var geneD3_showBrush = false;
   var geneD3_showLabel = false;
   var geneD3_showXAxis = true;
+  var geneD3_modelName = null;
+
 
 
 
@@ -26,7 +28,6 @@ export default function geneD3() {
   var margin = {top: 30, right: 0, bottom: 20, left: 110};
   var geneD3_width = 800,
       geneD3_height = 400;
-
 
   // scales
   var x = d3.scale.linear(),
@@ -71,7 +72,6 @@ export default function geneD3() {
     geneD3_cdsHeight = geneD3_cdsHeight || geneD3_trackHeight;
     geneD3_utrHeight = geneD3_utrHeight || geneD3_cdsHeight / 2;
     geneD3_arrowHeight = geneD3_arrowHeight || geneD3_trackHeight / 2;
-
 
     selection.each(function(data) {
 
@@ -171,19 +171,20 @@ export default function geneD3() {
              .style("visibility", "visible");
         })
 
-
       var axisEnter = svg.selectAll("g.x.axis").data([0]).enter().append('g');
       if (geneD3_showXAxis) {
         axisEnter.attr("class", "x axis")
                  .attr("transform",   "translate(" + margin.left + "," + "0" + ")");
         svg.selectAll("g.x.axis").attr("transform",   "translate(" + margin.left + "," + parseInt(geneD3_height+margin.top+margin.bottom+featureGlyphHeight) + ")");
-      }
+        // svg.selectAll("g.x.axis").attr("transform",   "translate(" + margin.left + "," + parseInt(geneD3_height+margin.top+margin.bottom+featureGlyphHeight + 10) + ")");
 
+      }
 
       // Start gene model
       // add elements
       var transcript = g.selectAll('.transcript')
                         .data(data, function(d) { return d.transcript_id; });
+
       transcript.enter().append('g')
           .attr('class', transcriptClass)
           .attr("id", function(d,i) { return 'transcript_' +  d.transcript_id.split(".").join("_"); })
@@ -256,7 +257,8 @@ export default function geneD3() {
                     .style('fill-opacity', 0)
                     .style("pointer-events", "none");
 
-        transcript.selectAll('.type').data(function(d) { return [[d.start, d.transcript_type, (d.isCanonical ? ' CANONICAL' : ''), (d.xref != null ? "(" + d.xref + ")": ''),  d.sort]] })
+
+        transcript.selectAll('.type').data(function(d){ return [[d.start, d.transcript_type, (d.isCanonical ? ' CANONICAL' : ''), (d.xref != null ? "(" + d.xref + ")": ''),  d.sort]] })
                   .enter().append('text')
                     .attr('class', 'type')
                     .attr('x', function(d) { return (geneD3_width - margin.left - margin.right - 5) + 10 })
@@ -268,7 +270,6 @@ export default function geneD3() {
                       var type =  (d[1] == 'protein_coding' || d[1] == 'mRNA' ? '' : d[1]);
                       return type + ' ' + d[2] + ' ' + d[3];
                     })
-
 
       }
 
@@ -301,6 +302,7 @@ export default function geneD3() {
           .attr('class', function(d,i) {
             return featureClass(d,i);
           })
+          .attr("modelName", geneD3_modelName)
           .attr('rx', borderRadius)
           .attr('ry', borderRadius)
           .attr('x', function(d) { return d3.round(x(d.start))})
@@ -443,7 +445,7 @@ export default function geneD3() {
             .call(brush)
             .selectAll("rect")
             .attr("y", 0)
-            .attr("height", brushHeight);
+            .attr("height", brushHeight)
 
         theBrush.selectAll(".resize")
           .append("line")
@@ -635,6 +637,11 @@ export default function geneD3() {
     return chart;
   }
 
+  chart.modelName = function(_) {
+    if (!arguments.length) return modelName;
+    geneD3_modelName = _;
+    return chart;
+  }
   chart.selectedTranscript = function(_) {
     if (!arguments.length) return selectedTranscript;
     selectedTranscript = _;

@@ -88,11 +88,9 @@ export default {
           return [[]];
         }
       },
-      model: {
-        type: Object,
-        default: function() {
-          return null;
-        }
+      modelName: {
+        type: String,
+        default: ""
       },
       coverageDangerRegions: {
         type: Array,
@@ -164,7 +162,7 @@ export default {
       },
       regionGlyph: {
         type: Function,
-        default: function(d,i,regionX) {
+        default: function(d,i,regionX, modelName) {
         }
       }
 
@@ -183,9 +181,8 @@ export default {
     },
     methods: {
       draw: function() {
-        var self = this;
-
-        this.depthChart =  lineD3()
+        let self = this;
+          this.depthChart =  lineD3()
           .width(this.width)
           .height(this.height)
           .widthPercent("100%")
@@ -195,6 +192,7 @@ export default {
           .showXAxis(this.showXAxis)
           .showYAxis(this.showYAxis)
           .yAxisLine(this.yAxisLine)
+          .modelName(this.modelName)
           .yTicks(this.yTicks)
           .pos( function(d) { return d[0] })
           .depth( function(d) { return d[1] })
@@ -210,12 +208,12 @@ export default {
           .formatCircleText( function(pos, depth) {
             return depth + 'x' ;
           })
-          .regionGlyph(function(d, i, regionX) {
+          .regionGlyph(function(d, i, regionX, modelName) {
             var parent = d3.select(this.parentNode);
-            return self.regionGlyph(d, parent, regionX);
+            return self.regionGlyph(d, parent, regionX, modelName);
           })
           .on("d3region", function(featureObject, feature, lock) {
-            self.$emit("region-selected", featureObject, feature, lock );
+            self.$emit("region-selected", featureObject, feature, lock);
           })
 
           this.setDepthChart();
@@ -261,7 +259,6 @@ export default {
       data: function() {
         this.update();
       },
-
       regionStart: function() {
         this.regionSpan = this.regionStart + "-" + this.regionEnd;
       },
