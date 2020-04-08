@@ -2,8 +2,10 @@
 
 - [Terraform](https://www.terraform.io/)
 
-# Setup
+## Setup
 
 ```dosini
 terraform init
 ```
+
+TODO remote state
