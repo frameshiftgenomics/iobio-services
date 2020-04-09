@@ -8,4 +8,8 @@
 terraform init
 ```
 
-TODO remote state
+## Deploy
+
+```dosini
+terraform apply
+```

@@ -14,11 +14,6 @@ provider "aws" {
   region  = "us-east-1"
 }
 
-# # Create a VPC
-# resource "aws_vpc" "example" {
-#   cidr_block = "10.0.0.0/16"
-# }
-
 resource "aws_instance" "iobio" {
   ami                  = "ami-07ebfd5b3428b6f4d"
   instance_type        = "m5.2xlarge"
@@ -78,6 +73,6 @@ resource "aws_iam_role_policy_attachment" "attach_role" {
 }
 
 resource "aws_iam_instance_profile" "instance_profile" {
-  name = "AmazonS3FullAccessForEC2IobioInstanceProfile"
+  name = "AmazonS3FullAccessForEC2Iobio"
   role = aws_iam_role.instance.name
 }
