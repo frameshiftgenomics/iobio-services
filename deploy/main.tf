@@ -14,9 +14,19 @@ provider "aws" {
   region  = "us-east-1"
 }
 
+data "aws_ami" "iobio" {
+  most_recent = true
+  owners      = ["self"]
+
+  filter {
+    name   = "name"
+    values = ["iobio-services*"]
+  }
+}
+
+
 resource "aws_instance" "iobio" {
-  // TODO Use data source to find lastest iobio-services ami in our account
-  ami                    = "ami-07ebfd5b3428b6f4d"
+  ami                    = data.aws_ami.iobio.id
   instance_type          = "m5.2xlarge"
   vpc_security_group_ids = [aws_security_group.allow_http.id]
 
