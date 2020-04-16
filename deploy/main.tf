@@ -16,9 +16,9 @@ provider "aws" {
 
 resource "aws_instance" "iobio" {
   // TODO Use data source to find lastest iobio-services ami in our account
-  ami             = "ami-07ebfd5b3428b6f4d"
-  instance_type   = "m5.2xlarge"
-  security_groups = [aws_security_group.allow_http.id]
+  ami                    = "ami-07ebfd5b3428b6f4d"
+  instance_type          = "m5.2xlarge"
+  vpc_security_group_ids = [aws_security_group.allow_http.id]
 
   tags = {
     Name = "iobio-prod"
