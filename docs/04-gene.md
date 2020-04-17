@@ -11,12 +11,9 @@ Gene.iobio is a client application for investigating potential disease-causing v
 
 ### Env file
 
-```bash
-# create client env file, edit as necessary
-cp .env.template .env
-```
+Environment is configured using env files: `.env.{environment}`
 
-__NOTES:__
+**NOTES:**
 
 - Point the backend url to be `gru.localhost` for local development.
 - Append the backend url with `/api` to proxy all requests to the backend in production. The proxy will strip the prefix automatically.

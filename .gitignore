@@ -9,12 +9,11 @@ npm-debug.log*
 .idea
 .vscode
 
-# Environment variable files
-.env
-.env.local
-
 # TLS Certificates
 letsencrypt
 
 # Data directory for gru SQLite database
 sqlite/data
+
+# Terraform
+.terraform

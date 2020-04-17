@@ -59,7 +59,7 @@ module.exports = {
   },
   plugins: [
     new CleanWebpackPlugin(['client/dist'], {}),
-    new Dotenv(),
+    new Dotenv({ path: inProduction ? './.env.prod' : './.env.local' }),
   ],
   // resolve: {
   //   alias: {
