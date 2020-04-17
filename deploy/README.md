@@ -8,13 +8,13 @@
 
 ## Setup
 
-```console
+```bash
 terraform init
 ```
 
 ## Build
 
-```console
+```bash
 docker-compose -f docker-compose-prod.yml build
 docker-compose push
 packer build iobio.json
@@ -22,6 +22,6 @@ packer build iobio.json
 
 ## Deploy
 
-```console
+```bash
 terraform apply
 ```
