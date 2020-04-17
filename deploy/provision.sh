@@ -30,6 +30,11 @@ sudo curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-
 # Apply executable permissions to the binary
 sudo chmod +x /usr/local/bin/docker-compose
 
+# Make file to hold TLS certs
+mkdir letsencrypt
+touch letsencrypt/acme.json
+chmod 600 letsencrypt/acme.json
+
 # Populate the data directory
 aws s3 sync s3://nebula-iobio-services sqlite
 

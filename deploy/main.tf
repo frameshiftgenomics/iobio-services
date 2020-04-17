@@ -24,7 +24,6 @@ data "aws_ami" "iobio" {
   }
 }
 
-
 resource "aws_instance" "iobio" {
   ami                    = data.aws_ami.iobio.id
   instance_type          = "m5.2xlarge"
