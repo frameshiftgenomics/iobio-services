@@ -9,10 +9,6 @@ npm-debug.log*
 .idea
 .vscode
 
-# Environment variable files
-.env
-.env.local
-
 # TLS Certificates
 letsencrypt
 
