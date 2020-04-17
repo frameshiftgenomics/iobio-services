@@ -8,13 +8,13 @@
 
 ## Setup
 
-```dosini
+```console
 terraform init
 ```
 
 ## Build
 
-```dosini
+```console
 docker-compose -f docker-compose-prod.yml build
 docker-compose push
 packer build iobio.json
@@ -22,6 +22,6 @@ packer build iobio.json
 
 ## Deploy
 
-```dosini
+```console
 terraform apply
 ```
