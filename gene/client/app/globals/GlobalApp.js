@@ -14,7 +14,7 @@ class GlobalApp {
 
     this.GREEN_IOBIO           = "nv-green.iobio.io/";  // Must always stay at green to accommodate VEP service
 
-    this.launchedFromMosaic     = false;
+    this.DEFAULT_IOBIO_BACKEND  = "backend.iobio.io"
     this.launchedFromUtahMosaic = false;
     this.IOBIO_SERVICES         = null;
     this.HTTP_SERVICES          = null;
@@ -68,7 +68,6 @@ class GlobalApp {
     this.BROWSER_CACHE_EXPIRATION    = 3 * 60 * 60 * 1000;  // 3 HOURS
 
 
-
     this.feedbackEmails              = "gene.iobio.feedback@gmail.com";  // what emails should feedback be sent to?   if no emails are provided, the feedback link will be hidden
     this.feedbackAttachScreenCapture = false;          // should the feedback include a screen capture?
     this.feedbackShowURL             = false;         // show the feedback email show the URL that launched gene.iobio?
@@ -88,36 +87,48 @@ class GlobalApp {
 
   }
 
-  initServices(launchedFromMosaic) {
-    this.launchedFromMosaic = launchedFromMosaic;
+  initBackendSource(iobioSource) {
+      this.IOBIO_SERVICES = (this.useSSL ? "https://" : "http://") + iobioSource + "/";
+      this.HTTP_SERVICES  = (this.useSSL ? "https://" : "http://") + iobioSource + "/";;
+      if (this.IOBIO_SERVICES.indexOf('mosaic.chpc.utah.edu') >= 0) {
+        this.launchedFromUtahMosaic = true;
+      }
+
+      // !!!!!
+      // TEMPORARY WORKAROUND - POINT HTTP SERVICES TO backend.iobio.io
+      //
+      this.HTTP_SERVICES  = (this.useSSL ? "https://" : "http://") + "backend.iobio.io" + "/";;
+
+
+      this.geneInfoServer            = this.HTTP_SERVICES + "geneinfo/";
+      this.geneToPhenoServer         = this.HTTP_SERVICES + "gene2pheno/";
+      this.phenolyzerOnlyServer      = this.HTTP_SERVICES + "phenolyzer/";
+      this.genomeBuildServer         = this.HTTP_SERVICES + "genomebuild/"
+      this.hpoLookupUrl              = this.HTTP_SERVICES + "hpo/hot/lookup/?term=";
+
+
+
+      this.emailServer           = (this.useSSL ? "wss://" : "ws://") +   iobioSource + "email/";
+  }
+
+  initServices(useMosaicBackend) {
 
     if (process.env.USE_SSL) {
       this.useSSL = process.env.USE_SSL === 'true' ? true : false;
     } 
 
     // These are the public services. 
-    if (launchedFromMosaic) {
-      this.IOBIO_SERVICES = (this.useSSL ? "https://" : "http://") + process.env.IOBIO_BACKEND_MOSAIC + "/";
-      this.HTTP_SERVICES  = (this.useSSL ? "https://" : "http://") + process.env.IOBIO_BACKEND_MOSAIC + "/";;
-      if (this.IOBIO_SERVICES.indexOf('mosaic.chpc.utah.edu') >= 0) {
-        this.launchedFromUtahMosaic = true;
-      }
+    if (useMosaicBackend && process.env.IOBIO_BACKEND_MOSAIC ) {
+      this.initBackendSource(process.env.IOBIO_BACKEND_MOSAIC)
+    } else if (process.env.IOBIO_BACKEND) {
+      this.initBackendSource(process.env.IOBIO_BACKEND)
     } else {
-      this.IOBIO_SERVICES = (this.useSSL ? "https://" : "http://") + process.env.IOBIO_BACKEND + "/";
-      this.HTTP_SERVICES  = (this.useSSL ? "https://" : "http://") + process.env.IOBIO_BACKEND+ "/";
+      console.log("No backend specified")
     }
 
-    this.geneInfoServer            = this.HTTP_SERVICES + "geneinfo/";
-    this.geneToPhenoServer         = this.HTTP_SERVICES + "gene2pheno/";
-    this.phenolyzerOnlyServer      = this.HTTP_SERVICES + "phenolyzer/";
-    this.genomeBuildServer         = this.HTTP_SERVICES + "genomebuild/"
-    this.hpoLookupUrl              = this.HTTP_SERVICES + "hpo/hot/lookup/?term=";
-
-
-    this.emailServer           = (this.useSSL ? "wss://" : "ws://") +   process.env.IOBIO_BACKEND + "email/";
   }
 
-  getClinvarUrl(build, launchedFromUtahMosaic) {
+  getClinvarUrl(build) {
 
       if (this.IOBIO_SERVICES.indexOf('mosaic.chpc.utah.edu') == 0) {
         var clinvarUrls = {

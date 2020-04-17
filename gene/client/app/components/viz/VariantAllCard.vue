@@ -67,7 +67,7 @@
     fill: $coverage-problem-glyph-color
 
 
-  #gene-viz, #gene-viz-zoom
+  .gene-viz, .gene-viz-zoom
     .transcript.current
       outline: none !important
       font-weight: normal !important
@@ -101,7 +101,7 @@
     color: $app-color
 
 
-  #gene-viz-zoom
+  .gene-viz-zoom
     .current
       outline: none
 
@@ -307,7 +307,6 @@
 
       </span>
 
-
         <optional-tracks-menu
             v-show="!isEduMode && !isBasicMode && !isSimpleMode"
             @show-known-variants-card="onShowKnownVariantsCard"
@@ -352,7 +351,7 @@
           <span v-if="sampleModel.loadedVariants"  slot="badge"> {{ sampleModel.calledVariants.features.length }} </span>
           Called
         </v-badge>
-        <v-badge  v-if="sampleModel.loadedVariants && coverageDangerRegions.length > 0 && !(sampleModel.isSfariSample && blacklistedGeneSelected)" class="ml-4 mr-4 coverage-problem" >
+        <v-badge  v-if="!isSimpleMode && !isBasicMode && sampleModel.loadedVariants && coverageDangerRegions.length > 0 && !(sampleModel.isSfariSample && blacklistedGeneSelected)" class="ml-4 mr-4 coverage-problem" >
           <span slot="badge"> {{ coverageDangerRegions.length }} </span>
           Exons with insufficient coverage
         </v-badge>
@@ -415,20 +414,26 @@
       </div>
 
       <div style="width:100%">
-        <gene-viz id="gene-viz-zoom"
+        <gene-viz class="gene-viz-zoom"
         v-if="showZoom"
         :data="[selectedTranscript]"
+        :modelName="sampleModel.name"
         :margin="geneZoomVizMargin"
         :width="width"
+        :height="40"
         :showXAxis="false"
         :trackHeight="geneVizTrackHeight + 20"
         :cdsHeight="geneVizCdsHeight + 20"
         :regionStart="parseInt(selectedGene.start)"
         :regionEnd="parseInt(selectedGene.end)"
         :showBrush="true"
+        :featureClass="getExonClass"
         @region-zoom="onRegionZoom"
         @region-zoom-reset="onRegionZoomReset"
         >
+
+
+
         </gene-viz>
 
         <div class="chart-label"
@@ -498,7 +503,7 @@
           :showBrush="false"
           :showXAxis="true"
           :showWhenEmpty="true"
-          :showTransition="true"
+          :showTransition="false"
           :classifySymbolFunc="classifyVariantSymbolFunc"
           @variantClick="onVariantClick"
           @variantHover="onVariantHover"
@@ -517,8 +522,9 @@
             v-if="showDepthViz && !(sampleModel.isSfariSample && blacklistedGeneSelected)"
             ref="depthVizRef"
             :data="sampleModel.coverage"
+            :modelName="sampleModel.name"
             :coverageMedian="sampleModel.cohort.filterModel.geneCoverageMedian"
-            :coverageDangerRegions="coverageDangerRegions"
+            :coverageDangerRegions="!isSimpleMode && !isBasicMode ? coverageDangerRegions : []"
             :currentPoint="coveragePoint"
             :maxDepth="sampleModel.cohort.maxDepth"
             :regionStart="regionStart"
@@ -535,10 +541,11 @@
           </depth-viz>
         </div>
 
-        <gene-viz id="gene-viz"
+        <gene-viz class="gene-viz"
           :style="isEduMode ? `margin-top: 20px` : `margin-top:-5px`"
           v-bind:class="{ hide: !showGeneViz && !(sampleModel.isSfariSample && blacklistedGeneSelected) }"
           :data="[selectedTranscript]"
+          :modelName="sampleModel.name"
           :margin="geneVizMargin"
           :width="width"
           :height="40"
@@ -571,7 +578,7 @@
             :regionEnd="regionEnd"
             :annotationScheme="annotationScheme"
             :width="width"
-            :margin="variantVizMargin"
+            :margin="geneVizMargin"
             :variantHeight="variantSymbolHeightOther"
             :variantPadding="variantSymbolPadding"
             :showBrush="false"
@@ -600,9 +607,9 @@
             v-if="showDepthViz && !(model.isSfariSample && blacklistedGeneSelected)"
             ref="otherDepthVizRef"
             :data="model.coverage"
-            :model="model"
+            :modelName="model.name"
             :coverageMedian="model.cohort.filterModel.geneCoverageMedian"
-            :coverageDangerRegions="model.coverageDangerRegions"
+            :coverageDangerRegions="!isSimpleMode ? model.coverageDangerRegions : []"
             :currentPoint="coveragePoint"
             :maxDepth="model.cohort.maxDepth"
             :regionStart="regionStart"
@@ -618,7 +625,28 @@
           >
           </depth-viz>
 
+          <gene-viz
+                  class="gene-viz"
+                    :modelName="model.name"
+                    :style="isEduMode ? `margin-top: 20px` : `margin-top:-5px`"
+                    v-bind:class="{ hide: !showGeneViz && !(sampleModel.isSfariSample && blacklistedGeneSelected) }"
+                    :data="[selectedTranscript]"
+                    :margin="geneVizMargin"
+                    :width="width"
+                    :height="40"
+                    :trackHeight="geneVizTrackHeight"
+                    :cdsHeight="geneVizCdsHeight"
+                    :regionStart="regionStart"
+                    :regionEnd="regionEnd"
+                    :showXAxis="geneVizShowXAxis"
+                    :showBrush="false"
+                    :featureClass="getExonClass"
+                    @feature-selected="showExonTooltip"
+          >
+          </gene-viz>
+
         </div>
+
 
 
 
@@ -652,7 +680,7 @@ export default {
     KnownVariantsToolbar,
     SfariVariantsToolbar,
     StackedBarChartViz,
-    OptionalTracksMenu
+    OptionalTracksMenu,
   },
   props: {
     globalAppProp: null,  //For some reason, global mixin not working on variant card.  possible cause for-item?
@@ -767,12 +795,13 @@ export default {
         return val + "x";
       }
     },
-    depthVizRegionGlyph: function(exon, regionGroup, regionX) {
+    depthVizRegionGlyph: function(exon, regionGroup, regionX, modelName) {
       var exonId = 'exon' + exon.exon_number.replace("/", "-");
       if (regionGroup.select("g#" + exonId).empty()) {
         regionGroup.append('g')
               .attr("id", exonId)
               .attr('class',      'region-glyph coverage-problem-glyph')
+              .attr("modelName", modelName)
               .attr('transform',  'translate(' + (regionX - 6) + ',-6)')
               .data([exon])
               .append('use')
@@ -780,7 +809,10 @@ export default {
               .attr('width',      '16')
               .attr('href', '#coverage-problem-symbol')
               .attr('xlink','http://www.w3.org/1999/xlink')
-              .data([exon]);
+              .data([exon])
+                .attr("modelName", this.sampleModel.name)
+
+        ;
       }
     },
     onVariantClick: function(variant, model) {
@@ -1083,7 +1115,7 @@ export default {
       }
       self.$refs.otherDepthVizRef.forEach(function(depthVizRef) {
 
-        if (depthVizRef.model.coverage != null && depthVizRef.model.coverage.length > 0) {
+        if (depthVizRef && depthVizRef.model && depthVizRef.model.coverage  && depthVizRef.model.coverage.length > 0) {
           let theDepth = null;
           let theAltCount = null;
           var matchingVariants = depthVizRef.model.loadedVariants.features.filter(function(v) {
@@ -1157,6 +1189,23 @@ export default {
         return exon.feature_type.toLowerCase();
       }
     },
+
+    getSampleFromHover: function(e){
+      let modelName = "";
+      if(e[0][0].attributes.modelName) {
+        modelName = e[0][0].attributes.modelName.value;
+      }
+      for(let i = 0; i < this.otherModels.length; i++){
+        if(modelName == this.otherModels[i].name){
+          return this.otherModels[i];
+        }
+      }
+      if(modelName === this.sampleModel.name){
+        return this.sampleModel;
+      }
+      return this.sampleModel;
+    },
+
     showExonTooltip: function(featureObject, feature, lock) {
       let self = this;
       let tooltip = d3.select("#exon-tooltip");
@@ -1188,8 +1237,10 @@ export default {
         return row;
       }
 
-      let html = self.globalAppProp.utility.formatExonTooltip(self.sampleModel.cohort.filterModel,
-                                                              self.sampleModel.getRelationship(),
+      let sample = self.getSampleFromHover(featureObject);
+
+      let html = self.globalAppProp.utility.formatExonTooltip(sample.cohort.filterModel,
+                                                              sample.relationship,
                                                               coverageRow,
                                                               feature,
                                                               lock)
@@ -1327,7 +1378,7 @@ export default {
     clearZoom: function() {
       this.showZoom = false;
       this.zoomMessage = "Drag to zoom";
-    }
+    },
   },
 
 

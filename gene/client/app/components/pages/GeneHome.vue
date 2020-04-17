@@ -10,6 +10,11 @@
 .v-snack--top
   top: 60px !important
 
+
+.fluidMax
+  max-width: calc(100%) !important
+
+
 .v-snack--right
   margin-right: 55px !important
   top: 2px !important
@@ -17,7 +22,9 @@
 
   .v-snack__wrapper
     min-width: 150px !important
-    background-color: transparent !important
+    background-color: #007dd4 !important
+    box-shadow: none !important
+    -webkit-box-shadow: none !important
 
     .v-snack__content
       min-height: 30px !important
@@ -25,9 +32,47 @@
       padding-top: 0px !important
       padding-bottom: 0px !important
       font-weight: 600 !important
-      color: #03e9ff !important
+      color: white !important
+
+      span
+        color: white !important
 
 
+  #gene-viz, #gene-viz-zoom
+    .transcript.current
+      outline: none !important
+      font-weight: normal !important
+    .axis
+      padding-left: 0px
+      padding-right: 0px
+      margin-top: -10px
+      margin-bottom: 0px
+      padding-bottom: 0px
+      text
+        font-size: 11px
+        fill: rgb(120, 120, 120)
+      line, path
+        fill: none
+        stroke: lightgrey
+        shape-rendering: crispEdges
+        stroke-width: 1px
+      &.x
+        .tick
+          line
+            transform: translateY(-14px)
+          text
+            transform: translateY(6px)
+        path
+          transform: translateY(-20px)
+          display: none
+
+    .gene-viz-zoom
+      .current
+      outline: none
+
+      .cds, .exon, .utr
+        fill: rgba(159, 159, 159, 0.63)
+        stroke: rgb(159, 159, 159)
 
 .analysis-save-button
   right: 30px !important
@@ -129,6 +174,9 @@ main.content.clin, main.v-content.clin
   &.accent--text
     color:  $app-color !important
 
+.in-iframe .v--modal-box
+  top: 50px !important
+
 #pileup-container
   margin: 0px
   padding-top: 0px
@@ -223,12 +271,13 @@ main.content.clin, main.v-content.clin
       @analyze-all="onAnalyzeAll"
       @call-variants="callVariants"
       @filter-settings-applied="onFilterSettingsApplied"
+      @isDemo="onIsDemo"
     >
     </navigation>
 
 
     <v-content  :class="launchedFromClin ? 'clin' : '' ">
-      <v-container fluid>
+      <v-container class="fluidMax">
 
 
         <modal name="pileup-modal"
@@ -259,7 +308,8 @@ main.content.clin, main.v-content.clin
         :siteConfig="siteConfig"
         :defaultingToDemoData="cohortModel ? cohortModel.defaultingToDemoData : false"
         @on-advanced-mode="onAdvancedMode"
-        @on-basic-mode="onBasicMode">
+        @on-basic-mode="onBasicMode"
+        @on-simple-mode="onSimpleMode">
         </intro-card>
 
 
@@ -305,6 +355,8 @@ main.content.clin, main.v-content.clin
         </genes-card>
 
 
+
+          <v-card v-show="showGeneVariantsCard" tile id="gene-variants-card" class="app-card full-width">
         <gene-variants-card
           v-bind:class="{hide : showWelcome, 'full-width': true}"
           v-if="showGeneVariantsCard"
@@ -312,6 +364,7 @@ main.content.clin, main.v-content.clin
           :selectedTranscript="analyzedTranscript"
           :genomeBuildHelper="genomeBuildHelper"
           :cohortModel="cohortModel"
+          :sampleModels="cohortModel.sampleModels"
           :isEduMode="isEduMode"
           :isBasicMode="isBasicMode"
           :isSimpleMode="isSimpleMode"
@@ -324,6 +377,46 @@ main.content.clin, main.v-content.clin
           @gene-source-selected="onGeneSourceSelected"
           @gene-region-buffer-change="onGeneRegionBufferChange">
         </gene-variants-card>
+
+              <div
+                      v-if="geneModel && (!launchedFromDemo && !launchedFromHub) && !launchedFromFiles && !launchedFromClin"
+                      v-show="geneModel && (!launchedFromDemo && !launchedFromHub) && !launchedFromFiles && !launchedFromClin"
+
+                      style="height: 15px"></div>
+
+          <gene-viz class="gene-viz-zoom"
+                    v-if="geneModel && (!launchedFromDemo && !launchedFromHub && !launchedFromFiles && !launchedFromClin) && !isBasicMode && !isSimpleMode"
+                    v-show="geneModel && (!launchedFromDemo && !launchedFromHub && !launchedFromFiles && !launchedFromClin) && !isBasicMode && !isSimpleMode"
+                    :data="[selectedTranscript]"
+                    :margin="geneVizMargin"
+                    :height="40"
+                    :width="cardWidth"
+                    :isStandalone="true"
+                    :showXAxis="true"
+                    :trackHeight="geneVizTrackHeight"
+                    :cdsHeight="geneVizCdsHeight"
+                    :regionStart="parseInt(selectedGene.start)"
+                    :regionEnd="parseInt(selectedGene.end)"
+                    :showBrush="false"
+          >
+          </gene-viz>
+
+          </v-card>
+
+        <!--selectedGene && selectedGene.length > 0-->
+
+        <!--<v-card class="app-card"-->
+                <!--v-if="geneModel && (!launchedFromDemo && !launchedFromHub)"-->
+                <!--style="overflow-y:scroll;margin-left:5px"-->
+        <!--&gt;-->
+
+
+        <!--geneVizTrackHeight: self.isEduMode || self.isBasicMode ? 32 : 16,-->
+        <!--geneVizCdsHeight: self.isEduMode || self.isBasicMode ? 24 : 12,-->
+
+
+      <!--</v-card>-->
+
 
         <variant-all-card
         ref="variantCardProbandRef"
@@ -382,7 +475,7 @@ main.content.clin, main.v-content.clin
 
         <variant-detail-card
           ref="variantInspectRef"
-          v-if="cohortModel && cohortModel.isLoaded && isBasicMode && user"
+          v-if="cohortModel && cohortModel.isLoaded && isBasicMode"
           :isBasicMode="isBasicMode"
           :isEduMode="isEduMode"
           :selectedGene="selectedGene"
@@ -662,6 +755,8 @@ import SaveButton         from '../partials/SaveButton.vue'
 import SaveAnalysisPopup  from '../partials/SaveAnalysisPopup.vue'
 
 import VuePileup          from 'vue-pileup'
+import GeneViz              from "../viz/GeneViz.vue"
+
 
 
 
@@ -674,6 +769,7 @@ export default {
       Welcome,
       GenesCard,
       GeneCard,
+      GeneViz,
       GeneVariantsCard,
       ScrollButton,
       VariantInspectCard,
@@ -729,6 +825,17 @@ export default {
   data() {
     let self = this;
     return {
+
+      geneVizMargin: {
+        top: 0,
+        right: self.isBasicMode || self.isEduMode ? 7 : 2,
+        bottom: 18,
+        left: self.isBasicMode || self.isEduMode ? 9 : 4
+      },
+
+      geneVizTrackHeight: self.isEduMode || self.isBasicMode ? 32 : 16,
+      geneVizCdsHeight: self.isEduMode || self.isBasicMode ? 24 : 12,
+
       greeting: 'gene.iobio',
       launchedFromClin:   false,
       launchedFromDemo: false,
@@ -740,6 +847,7 @@ export default {
 
       launchedFromHub: false,
       launchedFromSFARI: false,
+      launchedFromFiles: false,
       isHubDeprecated: false,
       sampleId: null,
       projectId: null,
@@ -752,10 +860,16 @@ export default {
       showCoverageThreshold: false,
 
       hubToIobioSources: {
-        "https://mosaic.chpc.utah.edu":          {iobio: "mosaic.chpc.utah.edu", batchSize: 10},
-        "https://mosaic-dev.genetics.utah.edu":  {iobio: "mosaic.chpc.utah.edu", batchSize: 10},
-        "http://mosaic-dev.genetics.utah.edu":   {iobio: "mosaic.chpc.utah.edu", batchSize: 10},
-        "https://staging.frameshift.io":         {iobio: "nv-prod.iobio.io",     batchSize: 10}
+        "https://mosaic.chpc.utah.edu":          {iobio: "mosaic.chpc.utah.edu/gru/api/v1", batchSize: 10},
+        "https://mosaic-dev.genetics.utah.edu":  {iobio: "mosaic.chpc.utah.edu/gru/api/v1", batchSize: 10},
+        "http://mosaic-dev.genetics.utah.edu":   {iobio: "mosaic.chpc.utah.edu/gru/api/v1", batchSize: 10},
+
+        // backward compatible with old clin.iobio
+        "mosaic.chpc.utah.edu":                  {iobio: "mosaic.chpc.utah.edu/gru/api/v1", batchSize: 10},
+        "nv-prod.iobio.io":                      {iobio: "mosaic.chpc.utah.edu/gru/api/v1", batchSize: 10},
+
+        "https://staging.frameshift.io":         {iobio: "backend.iobio.io",     batchSize: 10},
+        "https://mosaic.frameshift.io":          {iobio: "backend.iobio.io",     batchSize: 10}
       },
 
       sfariSource:  "https://viewer.sfari.org",
@@ -968,20 +1082,7 @@ export default {
     },
 
     showGeneVariantsCard: function() {
-      // if(this.launchedFromDemo && this.cohortModel.isLoaded && this.selectedGene){
-      //   console.log("launchedFromDemo")
-      //   return true;
-      // }
-      // else if(this.launchedFromClin && this.cohortModel.isLoaded && this.selectedGene){
-      //   console.log("launchedFromClin");
-      //   return true;
-      // }
-      // else if((!this.launchedFromClin) && (!this.launchedFromDemo) && this.selectedGene){
-      //   console.log("only selected gene, this.launcedFromClin", this.launchedFromClin);
-      //   return true;
-      // }
-      // else {
-      //   console.log("made it to final else");
+
         return this.selectedGene && Object.keys(this.selectedGene).length > 0 && !this.isEduMode && (this.cohortModel.isLoaded || !(Array.isArray(this.models) && this.models.length > 1))
 
     },
@@ -1185,6 +1286,15 @@ export default {
 
       })
 
+    },
+
+    onRegionZoom: function(regionStart, regionEnd) {
+      this.zoomMessage = "Click to zoom out";
+      this.$emit('gene-region-zoom', regionStart, regionEnd);
+    },
+    onRegionZoomReset: function() {
+      this.zoomMessage = "Drag to zoom";
+      this.$emit('gene-region-zoom-reset');
     },
 
     promiseInitFromMosaic: function() {
@@ -1487,7 +1597,7 @@ export default {
 
     promiseLoadSiteConfig: function() {
       let self = this;
-      var target = window.document.URL.indexOf("dev.gene.iobio") > 0 || window.document.URL.indexOf("localhost") > 0 ? 'dev' : 'prod';
+      var target = window.document.URL.indexOf("dev.gene.iobio") > 0 || window.document.URL.indexOf("stage.mygene2.iobio") > 0  || window.document.URL.indexOf("localhost") > 0 ? 'dev' : 'prod';
 
       return new Promise(function(resolve, reject) {
 
@@ -1514,6 +1624,8 @@ export default {
 
     onLoadDemoData: function() {
       this.launchedFromDemo = true;
+      this.isMother = true;
+      this.isFather = true;
       let self = this;
       self.promiseClearCache()
       .then(function() {
@@ -1556,6 +1668,11 @@ export default {
                     self.cohortModel.promiseMarkCodingRegions(self.selectedGene, self.selectedTranscript)
                         .then(function(data) {
                             self.analyzedTranscript = data.transcript;
+
+                            if(self.analyzedTranscript.gene_name !== self.selectedGene.gene_name){
+                              self.geneModel.removeGene(self.selectedGene.gene_name);
+                              self.onShowSnackbar({message: 'Bypassing ' + self.selectedGene.gene_name + '. Unable to find transcripts.', timeout: 5000})
+                            }
                             resolve();
                         })
 
@@ -1591,6 +1708,8 @@ export default {
 
     onFilesLoaded: function(analyzeAll, callback) {
       let self = this;
+
+      this.launchedFromFiles = true;
 
       self.showWelcome = false;
       self.setUrlParameters();
@@ -1897,7 +2016,7 @@ export default {
         .catch(function(error) {
           console.log(error);
           self.geneModel.removeGene(geneName);
-          self.onShowSnackbar({message: 'Bypassing ' + geneName + '. Unable to find transcripts.', timeout: 60000})
+          self.onShowSnackbar({message: 'Bypassing ' + geneName + '. Unable to find transcripts.', timeout: 5000})
         })
       })
     },
@@ -2224,9 +2343,9 @@ export default {
     },
 
     isNewAnalysis: function() {
-      return (!this.analysis.hasOwnProperty("id")
-          || !this.analysis.id
-          || this.analysis.id == "");
+      return ( (this.analysis && !this.analysis.hasOwnProperty("id"))
+              || !this.analysis.id
+              || this.analysis.id == "");
     },
 
     removeGeneImpl: function(geneName) {
@@ -2464,7 +2583,15 @@ export default {
         self.isBasicMode  = self.paramMode == "basic" ? true : false;
         self.isEduMode    = (self.paramMode == "edu" || self.paramMode == "edutour") ? true : false;
       }
-      
+
+      if (self.paramMode && self.paramMode == 'advanced') {
+        if (self.isSimpleMode) {
+          self.isSimpleMode = false;
+        }
+      } else if (self.paramMode && self.paramMode == 'simple') {
+        self.isSimpleMode = true;
+      }
+
       self.showIntro = self.forMyGene2 || process.env.SHOW_INTRO;
 
       if (self.paramSampleId && self.paramSampleId.length > 0) {
@@ -2491,6 +2618,7 @@ export default {
         if (self.paramIobioSource == null && self.hubToIobioSources[self.paramSource]) {
           self.globalApp.IOBIO_SOURCE = self.hubToIobioSources[self.paramSource].iobio;
           self.globalApp.DEFAULT_BATCH_SIZE = self.hubToIobioSources[self.paramSource].batchSize;
+          self.globalApp.initBackendSource(self.globalApp.IOBIO_SOURCE)
         }
 
         if (self.projectId) {
@@ -2498,13 +2626,14 @@ export default {
         } else {
           self.isHubDeprecated = true;
         }
+      } else {
+        self.globalApp.initServices(self.launchedFromHub);
       }
 
       if (self.paramTour) {
         self.tourNumber = self.paramTour;
       }
 
-      self.globalApp.initServices(self.launchedFromHub);
       self.phenotypeLookupUrl = self.globalApp.hpoLookupUrl;
     },
     promiseInitFromUrl: function() {
@@ -2601,6 +2730,19 @@ export default {
           .then(function() {
             resolve();
           })
+        } else if (self.isSimpleMode) {
+          alertify.confirm("", "No data files specified",
+               function(){
+                  self.cohortModel.promiseInitDemo()
+                  .then(function() {
+                    self.cohortModel.defaultingToDemoData = true;
+                    self.onAnalyzeAll();
+                    resolve();
+                  })
+               },
+               function(){
+                  resolve();
+               }).set('labels', {ok:'Continue, but just use demo data', cancel:'Cancel'});
         } else {
           resolve();
         }
@@ -3022,7 +3164,9 @@ export default {
     onAdvancedMode: function() {
       let self = this;
       this.isBasicMode = false;
+      this.isSimpleMode = false;
       this.featureMatrixModel.isBasicMode = false;
+      this.featureMatrixModel.isSimpleMode = false;
       this.filterModel.isBasicMode = false;
       this.calcFeatureMatrixWidthPercent();
       this.onFilesLoaded(true, function() {
@@ -3039,9 +3183,25 @@ export default {
         self.$router.push( { name: 'home', query: {mode: 'basic', mygene2: self.forMyGene2 ? true : false } })
       });
     },
+    onSimpleMode: function() {
+      let self = this;
+      this.isSimpleMode = true;
+      this.featureMatrixModel.isBasicMode = false;
+      this.featureMatrixModel.isSimpleMode = true;
+      this.filterModel.isBasicMode = false;
+      this.calcFeatureMatrixWidthPercent();
+      this.onFilesLoaded(true, function() {
+        self.$router.push( { name: 'home', query: {mode: 'basic', mygene2: self.forMyGene2 ? true : false } })
+      });
+    },
     onStopAnalysis: function() {
       this.cohortModel.stopAnalysis();
       this.cacheHelper.stopAnalysis();
+    },
+    onIsDemo: function(bool){
+      this.isMother = bool;
+      this.isFather = bool;
+      this.launchedFromDemo = bool;
     },
     onShowSnackbar: function(snackbar) {
       if (snackbar && snackbar.message) {
@@ -3218,6 +3378,20 @@ export default {
 
 
       } else if (clinObject.type == 'set-data') {
+
+        // Set the iobio backend
+        if (clinObject.iobioSource && clinObject.iobioSource.length > 0) {
+          if (self.hubToIobioSources[clinObject.iobioSource]) {
+            self.globalApp.IOBIO_SOURCE = self.hubToIobioSources[clinObject.iobioSource].iobio;
+            self.globalApp.DEFAULT_BATCH_SIZE = self.hubToIobioSources[clinObject.iobioSource].batchSize;
+            self.globalApp.initBackendSource(self.globalApp.IOBIO_SOURCE)
+          } else {
+            alertify.warn("Launch Error", "Unable to set IOBIO_SOURCE")
+          }
+        } else {
+          self.globalApp.initServices(false);
+        }
+
         if (self.cohortModel == null || !self.cohortModel.isLoaded) {
           self.$set(self, "isFullAnalysis", true);
           if (self.filterModel) {
@@ -3232,8 +3406,10 @@ export default {
             self.analysis = clinObject.analysis;
             self.user     = clinObject.user;
 
-            self.geneModel.setRankedGenes({'gtr': clinObject.gtrFullList, 'phenolyzer': clinObject.phenolyzerFullList })
-            self.geneModel.setGenePhenotypeHitsFromClin(clinObject.genesReport);
+            if (self.geneModel) {
+              self.geneModel.setRankedGenes({'gtr': clinObject.gtrFullList, 'phenolyzer': clinObject.phenolyzerFullList })
+              self.geneModel.setGenePhenotypeHitsFromClin(clinObject.genesReport);
+            }
 
             console.log("gene.iobio set-data promiseInitClin")
             self.promiseInitClin(clinObject)
@@ -3497,11 +3673,11 @@ export default {
       }
 
 
+
       if (clinObject.iobioSource) {
         self.globalApp.IOBIO_SOURCE = clinObject.iobioSource;
-        self.globalApp.initServices(self.launchedFromHub);
+        self.globalApp.initServices(self.launchedFromHub );
       }
-
 
       let endpoint = new EndpointCmd(self.globalApp,
         self.cacheHelper.launchTimestamp,
@@ -3522,12 +3698,27 @@ export default {
         self.setIobioConfigFromClin(self.clinSetData);
         self.cohortModel.promiseInit(self.clinSetData.modelInfos)
         .then(function() {
-
-
           self.onSendFiltersToClin();
-
           self.models = self.cohortModel.sampleModels;
+
+          for(let i = 0; i < self.models.length; i++){
+            if(self.models[i].relationship === "mother"){
+              self.isMother = true;
+            }
+            else if(self.models[i].relationship === "father"){
+              self.isFather = true;
+            }
+          }
+
           self.geneModel.setCandidateGenes(self.clinSetData.genes);
+         
+          setTimeout(function() {
+            if (self.geneModel && self.geneModel.sortedGeneNames &&
+              self.geneModel.sortedGeneNames.length > 0) {
+              self.cacheHelper.analyzeAll(self.cohortModel, false, false);
+            }
+          }, 500)
+
           return self.promiseSetCacheFromClin(self.clinSetData)
 
         })
@@ -3547,8 +3738,6 @@ export default {
       self.nonProbandModels = [];
       if (this.models && this.models.length > 0) {
 
-
-        this.showGeneVariantsCard = this.selectedGene && Object.keys(this.selectedGene).length > 0 && !this.isEduMode && (this.cohortModel.isLoaded || !(this.models && this.models.length > 0))
         self.nonProbandModels = self.models.filter(function(model) {
           let keepIt =  model.relationship != 'proband';
           let showIt = false;
@@ -3569,13 +3758,8 @@ export default {
 
 
 
-
     applyGenesClin: function(clinObject) {
       let self = this;
-
-      if (self.clinSetData == null || !self.clinSetData.isImported || !self.clinSetData.isCacheSet) {
-        return;
-      }
 
       /*
       let genesToProcess = [];
@@ -3874,8 +4058,8 @@ export default {
             }
 
             if (options && options.notify) {
-                self.onShowSnackbar( {message: 'saving analysis...',
-                  timeout: 30000, top: true, right: true });
+                //self.onShowSnackbar( {message: 'saving analysis.',
+                //  timeout: 2000, bottom: true, right: true });
             }
 
 
@@ -3883,7 +4067,7 @@ export default {
             .then(function(analysis) {
               self.analysis = analysis;
               if (options && options.notify) {
-                self.onShowSnackbar( {message: 'analysis saved.', timeout: 2000, top: true, right: true});
+                self.onShowSnackbar( {message: 'analysis saved.', timeout: 2000, bottom: true, right: true});
               }
               resolve();
             })
@@ -3899,7 +4083,7 @@ export default {
           .then(function(analysis) {
             self.analysis = analysis;
             console.log("**********  adding mosaic analysis " + self.analysis.id + " " + " **************")
-            self.onShowSnackbar( {message: 'new analysis saved.', timeout: 30000, top: true, right: true});
+            self.onShowSnackbar( {message: 'new analysis saved.', timeout: 30000, bottom: true, right: true});
             resolve();
           })
           .catch(function(error) {
@@ -4016,10 +4200,10 @@ export default {
 
       self.analysis.payload.datetime_last_modified = self.globalApp.utility.getCurrentDateTime();
       self.promiseExportAnalysisVariant(variantToReplace)
-      .then(function(exportedVariant) {
+      .then(function() {
 
-        if (!self.isNewAnalysis()) {
-          return self.promiseAutosaveAnalysis({notify: true, delay: options.delay ? options.delay : true});
+        if(!self.isNewAnalysis() || (self.launchedFromClin && !self.launchedWithUrlParms)) {
+          return self.promiseAutosaveAnalysis({notify: true, delay: true});
         }
 
       })

@@ -212,6 +212,12 @@
           i.material-icons
               color: $link-color !important
 
+  .change-transcript-button
+    font-size: 13px
+    color: $link-color
+    margin: 0px
+    padding: 0px
+    height: 22px
 
 
   .pedigree-chart
@@ -301,6 +307,7 @@
 
       </div>
 
+        
       <variant-links-menu
       v-if="selectedVariant && info"
       :selectedGene="selectedGene"
@@ -423,7 +430,7 @@
             </gene-viz>
 
             <div class="variant-row " style="padding-top:5px">
-              <v-btn flat v-if="selectedVariantRelationship != 'known-variants' && cohortModel.getModel(selectedVariantRelationship ? selectedVariantRelationship : 'proband').isBamLoaded() "
+              <v-btn flat v-if="selectedVariantRelationship != 'known-variants' && cohortModel.getModel(selectedVariantRelationship ? selectedVariantRelationship : 'proband').isBamLoaded()  && !isSimpleMode "
               class="variant-action-button"  @click="onShowPileup">
                <v-icon>format_align_center</v-icon>
                Read Pileup
