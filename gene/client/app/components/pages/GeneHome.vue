@@ -375,7 +375,8 @@ main.content.clin, main.v-content.clin
           :isLoaded="cohortModel && cohortModel.isLoaded"
           @transcript-selected="onTranscriptSelected"
           @gene-source-selected="onGeneSourceSelected"
-          @gene-region-buffer-change="onGeneRegionBufferChange">
+          @gene-region-buffer-change="onGeneRegionBufferChange"
+          @no-data-warning="onNoDataWarning">
         </gene-variants-card>
 
               <div
@@ -789,6 +790,7 @@ export default {
   props: {
     paramGene:             null,
     paramGeneName:         null,
+    paramGeneNames:        null,
     paramGenes:            null,
     paramSpecies:          null,
     paramBuild:            null,
@@ -1817,7 +1819,7 @@ export default {
         geneNames = self.geneModel.sortedGeneNames.join(",");
       }
       queryObject.gene = geneName;
-      queryObject.geneNames = geneNames;
+      queryObject.genes = geneNames;
 
       self.$router.replace({ query: queryObject });
 
@@ -1830,9 +1832,14 @@ export default {
       self.deselectVariant();
       self.activeGeneVariantTab = "0";
       // self.showLeftPanelForGenes();
+      if(self.launchedFromFiles) {
+        self.showLeftPanelForGenes();
+      }
       self.promiseLoadGene(geneName)
       .then(function() {
-        // self.showLeftPanelForGenes();
+        if(self.launchedFromFiles) {
+          self.showLeftPanelForGenes();
+        }
         self.onSendGenesToClin();
         self.setUrlGeneParameters();
 
@@ -2043,6 +2050,17 @@ export default {
       self.geneModel.geneSource = theGeneSource;
       this.onGeneSelected(this.selectedGene.gene_name);
     },
+
+    onNoDataWarning: function(){
+      let warning = "No data has been loaded, please load data through the Files menu or click 'Run With Demo Data' on the landing page";
+
+      if(this.geneModel && (!this.launchedFromDemo && !this.launchedFromHub && !this.launchedFromFiles && !this.launchedFromClin) && !this.isBasicMode && !this.isSimpleMode) {
+        this.onShowSnackbar({message: warning, timeout: 7000});
+      }
+
+    },
+
+
     onGeneRegionBufferChange: function(theGeneRegionBuffer) {
       let self = this;
       self.geneModel.geneRegionBuffer = theGeneRegionBuffer;
@@ -2344,8 +2362,8 @@ export default {
 
     isNewAnalysis: function() {
       return ( (this.analysis && !this.analysis.hasOwnProperty("id"))
-              || !this.analysis.id
-              || this.analysis.id == "");
+              ||  (this.analysis && !this.analysis.id)
+              || (this.analysis && this.analysis.id == ""));
     },
 
     removeGeneImpl: function(geneName) {
@@ -2647,7 +2665,12 @@ export default {
           self.paramGenes.split(",").forEach( function(geneName) {
             self.geneModel.promiseAddGeneName(geneName);
           });
+        } else if (self.paramGeneNames) {
+          self.paramGeneNames.split(",").forEach( function(geneName) {
+            self.geneModel.promiseAddGeneName(geneName);
+          });
         }
+
         if (self.paramGene) {
           self.geneModel.promiseAddGeneName(self.paramGene);
           self.onGeneSelected(self.paramGene);
@@ -2800,7 +2823,6 @@ export default {
     },
     onApplyVariantNotes: function(variant) {
       let self = this;
-
       // If the variant isn't in the filtered variants list,
       // mark it as 'user flagged'
       if (self.cohortModel.getFlaggedVariant(variant) == null) {
@@ -2824,6 +2846,11 @@ export default {
 
       if (self.$refs.navRef && self.$refs.navRef.$refs.flaggedVariantsRef) {
         self.$refs.navRef.$refs.flaggedVariantsRef.populateGeneLists()
+      }
+
+      if(typeof variant.interpretation === 'undefined' || (variant.interpretation === "not-reviewed")){
+        variant.interpretation = 'unknown-sig';
+        self.onApplyVariantInterpretation(variant);
       }
 
     },
@@ -2855,7 +2882,7 @@ export default {
         self.$refs.navRef.$refs.flaggedVariantsRef.populateGeneLists()
       }
     },
-    onFlaggedVariantSelected: function(flaggedVariant, callback) {
+    onFlaggedVariantSelected: function(flaggedVariant, options={}, callback) {
       let self = this;
 
 
@@ -2863,7 +2890,7 @@ export default {
 
       // Only select the gene if it hasn't previously been selected or the transcript is different
       let genePromise = null;
-      if (self.selectedGene.gene_name == flaggedVariant.gene.gene_name) {
+      if (!options.force && self.selectedGene.gene_name == flaggedVariant.gene.gene_name) {
         genePromise = Promise.resolve();
       } else if (flaggedVariant.transcript == null
         && self.selectedTranscript
@@ -2872,6 +2899,7 @@ export default {
         self.selectedGene = flaggedVariant.gene;
         genePromise = Promise.resolve();
       } else if (flaggedVariant.transcript
+        && self.selectedTranscript
         && self.selectedTranscript.transcript_id == flaggedVariant.transcript.transcript_id) {
         // No need to reselect the gene if the same transcript on the same gene is already selecte
         self.selectedGene = flaggedVariant.gene;
@@ -3711,7 +3739,7 @@ export default {
           }
 
           self.geneModel.setCandidateGenes(self.clinSetData.genes);
-         
+
           setTimeout(function() {
             if (self.geneModel && self.geneModel.sortedGeneNames &&
               self.geneModel.sortedGeneNames.length > 0) {
@@ -3767,8 +3795,13 @@ export default {
       self.geneModel.setCandidateGenes(clinObject.genes);
       */
 
+
       self.geneModel.setGenePhenotypeHitsFromClin(clinObject.genesReport);
       self.geneModel.setRankedGenes({'gtr': clinObject.gtrFullList, 'phenolyzer': clinObject.phenolyzerFullList })
+
+      self.selectedGene = null;
+      self.selectedTranscript = null;
+      self.onFlaggedVariantSelected(self.selectedVariant, {force: true})
 
       /*
       if (clinObject.genes && Array.isArray(clinObject.genes)) {
@@ -3851,7 +3884,7 @@ export default {
 
             self.toClickVariant = firstFlaggedVariant;
             self.showLeftPanelWhenFlaggedVariants();
-            self.onFlaggedVariantSelected(firstFlaggedVariant, function() {
+            self.onFlaggedVariantSelected(firstFlaggedVariant, {}, function() {
               resolve()
             })
           })
