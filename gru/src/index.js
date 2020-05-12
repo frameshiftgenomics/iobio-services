@@ -101,21 +101,22 @@ router.post('/alignmentStatsStream', async (ctx) => {
 
 // gene.iobio & oncogene & cohort-gene endpoints
 //
-// TODO: need to change these to POSTs!
-router.get('/variantHeader', async (ctx) => {
-  await handle(ctx, 'variantHeader.sh', [ctx.query.url, ctx.query.indexUrl]);
-});
-// TODO: SJG TEST
+// TODO: test post version and delete get above 
 router.post('/variantHeader', async (ctx) => {
     const params = JSON.parse(ctx.request.body);
     await handle(ctx, 'variantHeader.sh', [params.url, params.indexUrl]);
 });
 
+router.post('/getChromosomes', async (ctx) => {
+    const params = JSON.parse(ctx.request.body);
+    console.log(JSON.stringify(params, null, 2));
+    await handle(ctx, 'getChromosomes.sh', [params.url, params.indexUrl]);
+});
 
 router.get('/vcfReadDepth', async (ctx) => {
   await handle(ctx, 'vcfReadDepth.sh', [ctx.query.url]);
 });
-// TODO: SJG TEST
+// TODO: test post version and delete above
 router.post('/vcfReadDepth', async (ctx) => {
     const params = JSON.parse(ctx.request.body);
     await handle(ctx, 'vcfReadDepth.sh', [params.url]);
@@ -172,7 +173,7 @@ router.get('/geneCoverage', async (ctx) => {
 
   await handle(ctx, 'geneCoverage.sh', args);
 });
-// TODO: SJG TEST
+// TODO: test post version and delete above
 router.post('/geneCoverage', async (ctx) => {
     const params = JSON.parse(ctx.request.body);
 
@@ -217,7 +218,7 @@ router.get('/normalizeVariants', async (ctx) => {
 
   await handle(ctx, 'normalizeVariants.sh', args);
 });
-// TODO: SJG TEST
+// TODO: test post version and delete above
 router.post('/normalizeVariants', async (ctx) => {
     const params = JSON.parse(ctx.request.body);
 
@@ -270,7 +271,6 @@ router.get('/annotateVariants', async (ctx) => {
   //await handle(ctx, 'annotateVariants.sh', args);
   await handle(ctx, 'annotateVariants.sh', args, { ignoreStderr: true });
 });
-// TODO: SJG do I only need to json parse once?
 router.post('/annotateVariants', async (ctx) => {
 
     const params = JSON.parse(ctx.request.body);
@@ -297,6 +297,37 @@ router.post('/annotateVariants', async (ctx) => {
     ];
 
     await handle(ctx, 'annotateVariants.sh', args, { ignoreStderr: true });
+});
+
+router.post('/annotateEnrichmentCounts', async (ctx) => {
+    const params = JSON.parse(ctx.request.body);
+    console.log(JSON.stringify(params, null, 2));
+
+    const tbiUrl = params.tbiUrl ? params.tbiUrl : '';
+    const contigStr = genContigFileStr(params.refNames);
+    const regionStr = genRegionsStr(params.regions);
+    const refFastaFile = dataPath(params.refFastaFile);
+    const filterArgs = params.filterArgs ? params.filterArgs : '';
+    const experStr = params.expIdString ? params.expIdString : '';
+    const controlStr = params.controlIdString ? params.controlIdString : '';
+
+    const args = [
+        params.vcfUrl, tbiUrl, regionStr, contigStr,
+        refFastaFile, params.filterArgs,
+        experStr, controlStr
+    ];
+
+    await handle(ctx, 'annotateEnrichmentCounts.sh', args, { ignoreStderr: true });
+});
+
+router.post('/getSomaticVariants', async (ctx) => {
+  
+  const params = JSON.parse(ctx.request.body);
+  console.log(JSON.stringify(params, null, 2));
+
+  const args = [params.vcfUrl, params.qualCutoff, params.totalReadCutoff, params.normalCountCutoff, params.tumorCountCutoff, params.normalAfCutoff, params.tumorAfCutoff, params.normalSampleIdx, params.totalSampleNum];
+  
+  await handle(ctx, 'getSomaticVariants.sh', args, { ignoreStderr: false });
 });
 
 router.post('/freebayesJointCall', async (ctx) => {
@@ -432,6 +463,13 @@ router.post('/getIdColumns', async (ctx) => {
     await handle(ctx, 'getIdColumns.sh', args, { ignoreStderr: true });
 });
 
+router.post('/checkBamBai', async (ctx) => {
+    const params = JSON.parse(ctx.request.body);
+    console.log(JSON.stringify(params, null, 2));
+
+    const args = [ params.url, params.indexUrl, params.region ];
+    await handle(ctx, 'checkBamBai.sh', args, { ignoreStderr: true });
+});
 
 // vcf.iobio endpoints
 router.post('/vcfStatsStream', async (ctx) => {
@@ -453,8 +491,7 @@ router.post('/vcfStatsStream', async (ctx) => {
   console.log(args);
 
   await handle(ctx, 'vcfStatsStream.sh', args, { ignoreStderr: true });
-});
-
+}); 
 
 
 async function handle(ctx, scriptName, args, options) {
@@ -503,6 +540,7 @@ app
   .use(mount('/static', staticServer))
   .use(logger())
   .use(cors({
+    origin: '*',
     maxAge: 86400,
   }))
   .use(bodyParser({
@@ -512,10 +550,4 @@ app
   }))
   .use(router.routes())
   .use(router.allowedMethods())
-  .listen(port, '0.0.0.0', onListening);
-
-function onListening () {
-  const { address, port } = this.address();
-  const protocol = this.addContext ? 'https' : 'http';
-  console.log(`Listening on ${protocol}://${address}:${port}`);
-}
+  .listen(port);
