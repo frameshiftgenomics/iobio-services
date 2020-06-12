@@ -115,6 +115,14 @@
           margin-bottom: 5px
           height: 1px
 
+      .variant-column-hint
+        font-size: 13px
+        line-height: 14px
+        margin-bottom: 10px
+        margin-top: -10px
+        font-style: italic
+        height: 40px
+
       .variant-row
         display: flex
         flex-direction: row
@@ -127,10 +135,11 @@
           margin-bottom: 0px
 
       .pheno-search-term
-        max-width: 90px
+        max-width: 100px
         display: inline-block
         vertical-align: top
         line-height: 14px
+        overflow-wrap: break-word
 
       #qual-track
         margin-top: 0px
@@ -219,6 +228,12 @@
     padding: 0px
     height: 22px
 
+  .rsid
+    padding-right: 20px
+    padding-top: 2px
+
+    .rsid-link
+      padding-left: 2px
 
   .pedigree-chart
     circle
@@ -283,6 +298,27 @@
       text
         font-size: 11px
         text-anchor: middle
+
+#show-more-gene-association-button
+  margin: 0px 0px 0px 0px
+  font-size: 13px
+  height: 26px
+  margin-bottom: 0px
+  padding-left: 0px
+  padding-right: 4px
+  float: right
+  margin-right: 10px
+
+  .btn__content, .v-btn__content
+    color:  $link-color
+    padding-left: 5px
+    padding-right: 5px
+    font-weight: 500
+
+    i.material-icons
+      color: $link-color
+      font-size: 17px
+      padding-right: 5px
 </style>
 
 <style lang="css">
@@ -307,7 +343,7 @@
 
       </div>
 
-        
+
       <variant-links-menu
       v-if="selectedVariant && info"
       :selectedGene="selectedGene"
@@ -335,17 +371,18 @@
 
       <v-badge class="info" style="margin-top:2px;margin-right:10px" v-if="!isSimpleMode && selectedVariant && selectedVariant.multiallelic && selectedVariant.multiallelic.length > 0">multiallelic</v-badge>
 
-        <div v-if="info && info.rsId" style="display: inline-flex; padding-right:20px; font-size:14px; line-height:18px; padding-top: 3px; font-weight: 100"> {{info.rsId}}
-        <a  v-bind:href="info.dbSnpUrl" target="ClinVar" style="padding-left: 4px;">
-            <i aria-hidden="true" class="v-icon link-icon material-icons theme--light" style="font-size: 15px;color: #30638e; padding-bottom: 3px">open_in_new</i>
-        </a>
-        </div>
+      <div v-if="info && info.rsId"  class="variant-header rsid"> {{info.rsId}}
+      <a  v-bind:href="info.dbSnpUrl" target="ClinVar" class="rsid-link">
+          <i aria-hidden="true" class="v-icon link-icon material-icons theme--light" style="font-size: 15px;color: #30638e; padding-bottom: 3px">open_in_new</i>
+      </a>
+      </div>
 
       <app-icon
-       style="min-width:35px;margin-top:1px;margin-right:5px;padding-top: 1px;margin-right:10px"
+       style="min-width:70px;margin-top:1px;margin-right:5px;padding-top: 1px;margin-right:10px"
        icon="zygosity" v-if="selectedVariant && selectedVariant.zygosity"
        :type="selectedVariant.zygosity.toLowerCase() + '-large'"
-       height="14" width="35">
+       :isSimpleMode="isSimpleMode"
+       height="14" :width="isSimpleMode ? 85 : 35">
       </app-icon>
 
       <span v-if="selectedVariant" class="variant-header" style="margin-top:2px">
@@ -367,7 +404,7 @@
 
       <v-spacer></v-spacer>
 
-      <div v-if="!isSimpleMode && selectedVariant && !showAssessment && selectedVariantInterpretation != 'known-variants'" style="margin-left:20px;margin-right:0px">
+      <div v-if="!isSimpleMode && selectedVariant && !showAssessment" style="margin-left:20px;margin-right:0px">
         <v-btn raised id="show-assessment-button" @click="onEnterComments">
           <v-icon>gavel</v-icon>
           Review
@@ -383,6 +420,9 @@
           <div class="variant-column-header">
             Quality
             <v-divider></v-divider>
+          </div>
+          <div class='variant-column-hint' v-if="isSimpleMode">
+            Sequencing quality at this position
           </div>
           <variant-inspect-quality-row
             :info="getQualityInfo()"  >
@@ -444,14 +484,44 @@
             Gene Associations
             <v-divider></v-divider>
           </div>
-          <div v-if="genePhenotypeHits" v-for="geneHit in genePhenotypeHits" :key="geneHit.key" class="variant-row" style="flex-flow:column">
-            <div v-for="geneRank in geneHit.geneRanks" :key="geneRank.rank">
-              <div>
-                <v-chip class="high">#{{ geneRank.rank }}</v-chip>
-                <span v-if="geneRank.source" class="pheno-source">{{ geneRank.source }}</span>
-                <span v-if="geneHit.searchTerm" class="pheno-search-term">{{ geneHit.searchTerm }}</span>
+          <div v-if="genePhenotypeHits && genePhenotypeHits!==null && genePhenotypeHits.length" >
+            <div v-for="(geneHit, index) in genePhenotypeHits.slice(0,3)" :key="geneHit.key" class="variant-row" style="flex-flow:column">
+              <div v-for="geneRank in geneHit.geneRanks" :key="geneRank.rank">
+                <div>
+                  <v-chip v-if="geneRank.rank" class="high">
+                    <span class="mr-1">#{{ geneRank.rank  }}</span>
+                    <span v-if="geneRank.source">{{  geneRank.source }}</span>
+                  </v-chip>
+                  <v-chip v-else class="high">
+                    <span v-if="geneRank.source"> {{ geneRank.source }}</span>
+                  </v-chip>
+                  <span v-if="geneHit.searchTerm && geneRank.source!=='HPO'" class="pheno-search-term">
+                    {{ geneHit.searchTerm | to-firstCharacterUppercase }}
+                  </span>
+                  <span v-else-if="geneRank.source==='HPO' && geneRank.hpoPhenotype" class="pheno-search-term">
+                    {{ geneRank.hpoPhenotype | to-firstCharacterUppercase }}
+                  </span>
+                </div>
               </div>
             </div>
+          </div>
+          <div v-if="genePhenotypeHits!==null && genePhenotypeHits.length>=4">
+            <v-btn id="show-more-gene-association-button"
+              flat small
+              slot="activator"
+              v-tooltip.bottom-center="`Show all associations for this variant`"
+              @click="showMoreGeneAssociationsDialog=true">
+                <v-icon>zoom_out_map</v-icon>Show more
+            </v-btn>
+          </div>
+          <div>
+            <gene-associations-dialog
+              v-if="showMoreGeneAssociationsDialog"
+              :showDialog="showMoreGeneAssociationsDialog"
+              :genePhenotypeHits="genePhenotypeHits"
+              :selectedGene="selectedGene.gene_name"
+              @close-gene-association-dialog="onCloseGeneAssociationDialog($event)">
+            </gene-associations-dialog>
           </div>
       </div>
       <div class="variant-inspect-column" v-if="selectedVariant && info">
@@ -459,11 +529,15 @@
             Pathogenicity
             <v-divider></v-divider>
           </div>
+          <div class='variant-column-hint' v-if="isSimpleMode">
+            Clinical significance based on variant type, location, and documentation in ClinVar.
+          </div>
           <variant-inspect-row  v-for="clinvar,clinvarIdx in info.clinvarLinks" :key="clinvarIdx"
             :clazz="getClinvarClass(clinvar.significance)" :value="clinvar.clinsig" :label="`ClinVar`" :link="clinvar.url" >
           </variant-inspect-row>
 
-          <div v-if="info.clinvarTrait.length > 0" class="variant-row no-icon no-top-margin small-font">
+          <div v-if="showClinvarTrait(info)"
+            class="variant-row no-icon no-top-margin small-font">
             <span>{{ info.clinvarTrait }} </span>
           </div>
 
@@ -497,11 +571,14 @@
       </div>
 
 
-      <div class="variant-inspect-column" v-if="selectedVariant && selectedVariantRelationship != 'known-variants'">
+      <div class="variant-inspect-column" v-if="selectedVariant">
           <div class="variant-column-header">
               {{ isSimpleMode ? 'Population Frequency' : 'Pop Freq in gnomAD' }}
             <info-popup v-if="!isSimpleMode" name="gnomAD"></info-popup>
             <v-divider></v-divider>
+          </div>
+          <div class="variant-column-hint" v-if="isSimpleMode">
+            Common variants typically don’t cause diseases.
           </div>
           <variant-inspect-row :clazz="afGnomAD.class" :value="afGnomAD.percent" :label="`Allele freq`" :link="afGnomAD.link" >
           </variant-inspect-row>
@@ -515,7 +592,7 @@
           </div>
       </div>
 
-      <div class="variant-inspect-column" style="min-width:90px" v-if="!isSimpleMode && selectedVariant && selectedVariantRelationship != 'known-variants' && selectedVariant.inheritance.length > 0">
+      <div class="variant-inspect-column" style="min-width:90px" v-if="!isSimpleMode && selectedVariant && selectedVariant.inheritance.length > 0">
           <div class="variant-column-header">
             Inheritance
             <v-divider></v-divider>
@@ -544,6 +621,9 @@
           <div class="variant-column-header" >
             Conservation
             <v-divider></v-divider>
+          </div>
+          <div class="variant-column-hint" v-if="isSimpleMode">
+            Changes genome locations that are conserved across species are more likely to be clinically significant.
           </div>
           <div id="conservation-track" style="display:flex;">
             <div style="display:flex;flex-direction: column;max-width:130px;min-width:130px;margin-right: 10px">
@@ -638,7 +718,7 @@ import GeneViz                  from "../viz/GeneViz.vue"
 import PedigreeGenotypeViz      from "../viz/PedigreeGenotypeViz.vue"
 import ConservationScoresViz    from "../viz/ConservationScoresViz.vue"
 import MultialignSeqViz         from "../viz/MultialignSeqViz.vue"
-
+import GeneAssociationsDialog   from "../partials/GeneAssociationsDialog.vue"
 
 
 import BarChartD3               from '../../d3/BarChart.d3.js'
@@ -661,7 +741,8 @@ export default {
     PedigreeGenotypeViz,
     ToggleButton,
     ConservationScoresViz,
-    MultialignSeqViz
+    MultialignSeqViz,
+    GeneAssociationsDialog
   },
   props: {
     selectedGene: null,
@@ -670,6 +751,7 @@ export default {
     selectedVariantKey: null,
     selectedVariantInterpretation: null,
     selectedVariantRelationship: null,
+    selectedPhenotype: null,
     isSimpleMode: null,
     genomeBuildHelper: null,
     cohortModel: null,
@@ -732,7 +814,8 @@ export default {
       multialignSelectedBase: null,
       multialignInProgress: false,
 
-      enterCommentsClicked: false
+      enterCommentsClicked: false,
+      showMoreGeneAssociationsDialog: false,
     }
   },
 
@@ -742,9 +825,22 @@ export default {
 
     },
 
+    annotateClinVarVariant(){
+      this.refreshSelectedVariantInfo();
+    },
 
 
-    formatPopAF: function(afObject) {
+
+
+      refreshSelectedVariantInfo: function() {
+          if (this.selectedVariant) {
+              this.selectedVariantInfo =  this.globalApp.utility.formatDisplay(this.selectedVariant, this.cohortModel.translator, this.isEduMode)
+          } else {
+              this.selectedVariantInfo = null;
+          }
+      },
+
+      formatPopAF: function(afObject) {
       let self = this;
       var popAF = "";
       if (afObject['AF'] != ".") {
@@ -911,6 +1007,17 @@ export default {
       } else {
         return '';
       }
+    },
+    showClinvarTrait: function(info) {
+      let self = this;
+      let levelHigh = false;
+      info.clinvarLinks.forEach(function(clinvar) {
+        let clazz = self.getClinvarClass(clinvar.significance)
+        if (clazz == 'level-high' || clazz == 'level-medium') {
+          levelHigh = true;
+        }
+      })
+      return info.clinvarTrait.length > 0 && (levelHigh || !this.isSimpleMode);
     },
     getConservationScore: function(score) {
       if (score == null) {
@@ -1364,6 +1471,9 @@ export default {
     onEnterComments: function() {
       this.$emit("show-variant-assessment", true)
       this.enterCommentsClicked = true;
+    },
+    onCloseGeneAssociationDialog: function(data){
+      this.showMoreGeneAssociationsDialog = false;
     }
   },
 
@@ -1385,7 +1495,8 @@ export default {
     },
 
 
-    coord: function() {
+
+      coord: function() {
       let self = this;
       if (self.selectedVariant) {
         return self.selectedVariant.chrom + ":" + self.selectedVariant.start;
@@ -1492,9 +1603,18 @@ export default {
 
   watch: {
 
+      selectedPhenotype: function(){
+          this.initGenePhenotypeHits();
+      },
+
     selectedVariant: function() {
+      let self = this;
       this.$nextTick(function() {
-        this.loadData();
+          this.loadData();
+
+          if (self.selectedVariantRelationship === "known-variants") {
+              self.annotateClinVarVariant(self.selectedVariant);
+          }
       })
     },
   },
@@ -1521,6 +1641,17 @@ export default {
   },
 
   mounted: function() {
+      let self = this;
+      if(this.selectedVariant){
+          this.$nextTick(function() {
+              this.loadData();
+
+              if (self.selectedVariantRelationship === "known-variants") {
+                  self.annotateClinVarVariant(self.selectedVariant);
+              }
+          })
+      }
+
   },
 
   created: function() {

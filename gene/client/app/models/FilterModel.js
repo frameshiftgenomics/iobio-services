@@ -208,8 +208,8 @@ class FilterModel {
           // TODO - figure out how to show when variants no longer match filters
           active: false,
           custom: false,
-          title: "Not categorized",
-          name: "Variants found during full analysis, but not passing any app filters",
+          title: "Passes external filter",
+          name: "Variants filtered in pre-processing, but not passing any app filters",
           order: 9,
           userFlagged: false,
           maxAf: null,
@@ -227,7 +227,7 @@ class FilterModel {
           // TODO - figure out how to show when variants no longer match filters
           active: false,
           custom: false,
-          title: "Not categorized",
+          title: "Filtered variants",
           name: "Variants found during full analysis, but not passing any app filters",
           order: 8,
           userFlagged: false,
@@ -261,7 +261,7 @@ class FilterModel {
           minRevel: null,
           exclusiveOf: null
         }
-        
+
 
       },
       genefull: {
@@ -415,7 +415,7 @@ class FilterModel {
           // TODO - figure out how to show when variants no longer match filters
           active: false,
           custom: false,
-          title: "Not categorized",
+          title: "Filtered variants",
           name: "Variants found during full analysis, but not passing any app filters",
           order: 8,
           userFlagged: false,
@@ -836,6 +836,12 @@ class FilterModel {
         }
       }
 
+      var filtersPassedAll = [];
+      for (var filterName in self.flagCriteria) {
+        if (badgePassState[filterName]) {
+          filtersPassedAll.push(filterName);
+        }
+      }
       // If a badge is exclusive of passing other criteria, fail the badge
       // if the other badges passed the criteria for the filter
       // Example:  high is exclusive of the clinvar badge.
@@ -855,27 +861,31 @@ class FilterModel {
           }
         }
       }
-
-
     }
+
     // Now add the variant to any badges that passes the critera
     var filtersPassed = [];
     for (var filterName in self.flagCriteria) {
       if (badgePassState[filterName]) {
-        filtersPassed.push(filterName);
-        badges[filterName].push(variant);
+          filtersPassed.push(filterName);
+          badges[filterName].push(variant);
       }
     }
     if (filtersPassed.length > 0) {
       variant.isFlagged = true;
       variant.featureClass = 'flagged';
       variant.filtersPassed = filtersPassed;
+      variant.filtersPassedAll = filtersPassedAll;
     } else if (variant.isImported) {
       variant.isFlagged = true;
       variant.isUserFlagged = false;
       variant.notCategorized = true;
       variant.featureClass = 'flagged';
       self.mapGenomeWideFilter(variant);
+      if (badges["notCategorized"] == null) {
+        badges["notCategorized"] = [];
+      }
+      badges["notCategorized"].push(variant)
     }
 
     if (variant.isFlagged) {
@@ -895,13 +905,15 @@ class FilterModel {
 
   mapGenomeWideFilter(variant) {
     let self = this;
-    if (variant.variantSet && variant.variantSet.length > 0) {    
+    if (variant.variantSet && variant.variantSet.length > 0) {
       let filter = self.flagCriteria[variant.variantSet];
       if (filter) {
         variant.filtersPassed = variant.variantSet;
       } else {
-        filterName = 'notCategorized';
+        variant.filtersPassed = 'notCategorized';
       }
+    } else {
+      variant.filtersPassed = "notCategorized";
     }
   }
 
