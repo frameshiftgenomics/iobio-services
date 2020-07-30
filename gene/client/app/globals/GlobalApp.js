@@ -10,7 +10,7 @@ class GlobalApp {
     this.completedTour         = "";
 
 
-    this.version               = "4.2";
+    this.version               = "4.3.2";
 
     this.GREEN_IOBIO           = "nv-green.iobio.io/";  // Must always stay at green to accommodate VEP service
 
@@ -34,6 +34,8 @@ class GlobalApp {
     this.geneToPhenoServer     = null;
     this.genomeBuildServer     = null;
     this.phenolyzerOnlyServer  = null;
+
+    this.isDirty               = false;
 
 
     // config files
@@ -129,9 +131,17 @@ class GlobalApp {
 
   }
 
+  getCloseMessage() {
+    if (this.isDirty) {
+      return "Unsaved work. Do you really want to close?"; 
+    } else {
+      return null;
+    }
+  }
+
   getClinvarUrl(build) {
 
-      if (this.IOBIO_SERVICES.indexOf('mosaic.chpc.utah.edu') == 0) {
+      if (this.IOBIO_SERVICES.indexOf('mosaic.chpc.utah.edu') >= 0) {
         var clinvarUrls = {
           'GRCh37': "https://mosaic.chpc.utah.edu/static/GRCh37/2019/clinvar_20191021.vcf.gz",
           'GRCh38': "https://mosaic.chpc.utah.edu/static/GRCh38/2019/clinvar_20191021.vcf.gz"

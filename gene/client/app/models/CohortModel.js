@@ -5,7 +5,7 @@ import SampleModel      from './SampleModel.js'
 class CohortModel {
 
   constructor(globalApp, isEduMode, isBasicMode, endpoint, genericAnnotation, translator, geneModel,
-    variantExporter, cacheHelper, genomeBuildHelper, freebayesSettings) {
+    variantExporter, cacheHelper, genomeBuildHelper, launchedFromClin, freebayesSettings) {
 
     this.globalApp = globalApp;
     this.isEduMode = isEduMode;
@@ -21,6 +21,7 @@ class CohortModel {
     this.cacheHelper = cacheHelper;
     this.genomeBuildHelper = genomeBuildHelper;
     this.freebayesSettings = freebayesSettings;
+    this.launchedFromClin = launchedFromClin
     this.filterModel = null;
     this.featureMatrixModel = null;
 
@@ -922,7 +923,6 @@ class CohortModel {
 
   promiseLoadSfariVariants(theGene, theTranscript) {
       let self = this;
-
       if (self.sfariVariantsViz === 'variants') {
           return self._promiseLoadSfariVariants(theGene, theTranscript);
       } else  {
@@ -2049,8 +2049,32 @@ class CohortModel {
     variant.isFlagged = false;
     variant.isUserFlagged = false;
     this.removeFilterPassed(variant, "userFlagged");
+
     this._removeFlaggedVariantImpl(variant);
-    this._recacheForFlaggedVariant(theGene, theTranscript, variant, {summarizeDanger: true});
+
+    this.getProbandModel().promiseGetDangerSummary(theGene.gene_name)
+    .then(function(dangerSummary) {
+      let reviewedVariants = dangerSummary.badges['reviewed'];
+      var i = 0;
+        if (reviewedVariants) {
+        reviewedVariants.forEach(function(v) {
+          var matches = (
+            self.globalApp.utility.stripRefName(v.chrom) == self.globalApp.utility.stripRefName(variant.chrom)
+            && v.start == variant.start
+            && v.ref == variant.ref
+            && v.alt == variant.alt);
+          if (matches) {
+            index = i;
+          }
+          i++;
+        })
+        if (index >= 0) {
+          reviewedVariants.splice(index, 1);
+          me.geneModel.setDangerSummary(theGene.gene_name, dangerSummary);
+        }
+      }
+      //self._recacheForFlaggedVariant(theGene, theTranscript, variant, {summarizeDanger: true});
+    })
   }
 
   _removeFlaggedVariantImpl(variant) {
@@ -2449,19 +2473,23 @@ class CohortModel {
     let dataPromises = [];
     if (me.geneModel.isCandidateGene(geneName)) {
       var uniqueTranscripts = {};
-      intersectedGenes[geneName].forEach(function(importedVariant) {
-        if (importedVariant.transcript == null || importedVariant.transcript.transcript_id == null) {
-          console.log("No transcript for importedVariant");
-          console.log(importedVariant);
-        } else {
-          uniqueTranscripts[importedVariant.transcript.transcript_id] = importedVariant.transcript;
-        }
-      })
-
+      if(!intersectedGenes[geneName]){
+        intersectedGenes[geneName] = [{}];
+      }
+      if (intersectedGenes[geneName]) {
+        intersectedGenes[geneName].forEach(function(importedVariant) {
+          if (importedVariant.transcript == null || importedVariant.transcript.transcript_id == null) {
+            console.log("No transcript for importedVariant");
+            console.log(importedVariant);
+          } else {
+            uniqueTranscripts[importedVariant.transcript.transcript_id] = importedVariant.transcript;
+          }
+        })
+      }
+      
       if (theTranscript) {
         uniqueTranscripts[theTranscript.transcript_id] = theTranscript;
       }
-
       for (var transcriptId in uniqueTranscripts) {
         let dataPromise =  new Promise(function(resolve, reject) {
 
@@ -2476,7 +2504,7 @@ class CohortModel {
               var msg = "Unable to get variant vcf data for " + geneObject.gene_name + " " + transcript.transcript_id;
               console.log(msg);
               resolve();
-            } else if (importedVariants.length > 0) {
+            } else if (importedVariants && importedVariants.length > 0) {
 
               // Refresh imported variant records with real variants
               importedVariants.forEach(function(importedVariant) {
@@ -2551,7 +2579,10 @@ class CohortModel {
 
         })
         dataPromises.push(dataPromise);
-      }
+      }        
+
+
+
     }
     return dataPromises;
   }
@@ -2568,9 +2599,7 @@ class CohortModel {
         if (!options.includeReviewed && filterName == 'reviewed') {
           include = false;
         }
-        if (isFullAnalysis && !options.includeNotCategorized && filterName == 'notCategorized') {
-          include = false;
-        }
+
         if (include) {
           var sortedGenes = self._organizeVariantsForFilter(filterName, flagCriteria.userFlagged, isFullAnalysis, interpretationFilters, options, variant);
 
@@ -2728,12 +2757,12 @@ class CohortModel {
       if(variant) {
         let isUnique = true;
         for(let i = 0; i < this.flaggedVariants.length; i++){
-          if(!variant.variant_id && this.flaggedVariants[i].start === variant.start && this.flaggedVariants[i].end === variant.end && this.flaggedVariants[i].ref === variant.ref && this.flaggedVariants[i].alt === variant.alt){
+          if((this.launchedFromClin || (!this.launchedFromClin && !variant.variant_id)) && this.flaggedVariants[i].start === variant.start && this.flaggedVariants[i].end === variant.end && this.flaggedVariants[i].ref === variant.ref && this.flaggedVariants[i].alt === variant.alt){
             this.flaggedVariants[i] = variant;
             isUnique = false;
           }
         }
-        if(isUnique && variant.isUserFlagged){
+        if(isUnique && variant.isUserFlagged && variant.start && variant.end && variant.ref && variant.alt){
           this.flaggedVariants.push(variant);
         }
       }
@@ -2834,11 +2863,11 @@ class CohortModel {
       var featuresB = "";
 
 
-      var clinvarA = self.featureMatrixModel.getClinvarRank(a, a.clinvarClinSig) 
-      var clinvarB = self.featureMatrixModel.getClinvarRank(b, b.clinvarClinSig) 
+      var clinvarA = self.featureMatrixModel.getClinvarRank(a, a.clinvarClinSig)
+      var clinvarB = self.featureMatrixModel.getClinvarRank(b, b.clinvarClinSig)
 
-      var impactA = self.featureMatrixModel.getImpactRank(a, a.vepImpact) 
-      var impactB = self.featureMatrixModel.getImpactRank(b, b.vepImpact) 
+      var impactA = self.featureMatrixModel.getImpactRank(a, a.vepImpact)
+      var impactB = self.featureMatrixModel.getImpactRank(b, b.vepImpact)
 
       var inheritanceA = a.inheritance ? (a.inheritance.indexOf('n/a') == -1 ? 1 : 0) : 0;
       var inheritanceB = b.inheritance ? (b.inheritance.indexOf('n/a') == -1 ? 1 : 0) : 0;
