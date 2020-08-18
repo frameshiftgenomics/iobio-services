@@ -1388,14 +1388,19 @@ export default {
         self.hubSession.globalApp = self.globalApp;
         let isPedigree = self.paramIsPedigree && self.paramIsPedigree == 'true' ? true : false;
 
-        // Workaround until launch from Mosaic analysis can pass in is_pedigree
-        if (self.paramAnalysisId && self.paramAnalysisId.length > 0 && !isPedigree) {
-          isPedigree = true;
-        }
+
 
         self.cohortModel.setHubSession(self.hubSession);
-        self.hubSession.promiseInit(self.sampleId, self.paramSource, isPedigree, self.projectId, self.paramGeneSetId, self.paramVariantSetId)
+        self.hubSession.promiseInit(self.sampleId, 
+          self.paramSource, 
+          isPedigree || (self.paramAnalysisId && self.paramAnalysisId.length > 0), 
+          self.projectId, 
+          self.paramGeneSetId, 
+          self.paramVariantSetId)
         .then(data => {
+          if (isPedigree && !data.foundPedigree) {
+            self.onShowSnackbar({message: 'No pedigree for this sample. Loading proband only.', timeout: 5000})
+          }
           self.modelInfos = data.modelInfos;
           self.rawPedigree = data.rawPedigree;
           self.geneSet = data.geneSet;
@@ -2724,6 +2729,21 @@ export default {
       let self = this;
 
       return new Promise(function(resolve, reject) {
+
+        // Set the genome build before we access any gene 
+        // transcripts to ensure we are using the appropriate
+        // build!
+        if (self.paramSpecies) {
+          self.genomeBuildHelper.setCurrentSpecies(self.paramSpecies);
+        }
+        if (self.paramBuild) {
+          self.genomeBuildHelper.setCurrentBuild(self.paramBuild);
+        }
+        if (self.paramBatchSize) {
+          self.globalApp.DEFAULT_BATCH_SIZE = self.paramBatchSize;
+        }
+
+
         if (self.paramGeneSource) {
           self.geneModel.geneSource = self.paramGeneSource;
         }
@@ -2747,15 +2767,6 @@ export default {
           }
         }
 
-        if (self.paramSpecies) {
-          self.genomeBuildHelper.setCurrentSpecies(self.paramSpecies);
-        }
-        if (self.paramBuild) {
-          self.genomeBuildHelper.setCurrentBuild(self.paramBuild);
-        }
-        if (self.paramBatchSize) {
-          self.globalApp.DEFAULT_BATCH_SIZE = self.paramBatchSize;
-        }
 
         var modelInfos = [];
         for (var i = 0; i < self.paramRelationships.length; i++) {
@@ -4029,6 +4040,11 @@ export default {
           .then(function(analysis) {
             if (analysis) {
               self.analysis = analysis;
+
+              // Workaround - remove null variants
+              self.analysis.payload.variants = self.analysis.payload.variants.filter(function(v) {
+                return v != null;
+              })
               resolve(self.analysis);
             } else {
               reject("Unable to find/create an analysis " + idAnalysis);
@@ -4086,8 +4102,8 @@ export default {
         
           let exportPromises = [];
           self.cohortModel.flaggedVariants.forEach(function(flaggedVariant) {
-            let p = self.promiseExportAnalysisVariant(flaggedVariant)
-            exportPromises.push(p);
+              let p = self.promiseExportAnalysisVariant(flaggedVariant)
+              exportPromises.push(p);
           })
 
           return Promise.all(exportPromises)
@@ -4190,6 +4206,8 @@ export default {
       let self = this;
 
       let getGeneName = function(variant) {
+
+
         if (variant.gene == null && variant.geneName) {
           return variant.geneName;
         } else if (variant.gene && self.globalApp.utility.isObject(variant.gene)) {
