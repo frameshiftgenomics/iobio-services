@@ -3,8 +3,6 @@ const Router = require('koa-router');
 const cors = require('@koa/cors');
 const logger = require('koa-logger');
 const bodyParser = require('koa-bodyparser');
-const mount = require('koa-mount');
-const serve = require('koa-static');
 const path = require('path');
 const { run } = require('./process.js');
 const { mktemp } = require('./mktemp.js');
@@ -16,6 +14,7 @@ const genomeBuildRouter = require('./genomebuild.js');
 const hpoRouter = require('./hpo.js');
 const { dataPath } = require('./utils.js');
 const fs = require('fs');
+const { serveStatic } = require('./static.js');
 
 let port = 9001;
 if (process.argv[2]) {
@@ -30,11 +29,13 @@ router.use('/gene2pheno', gene2PhenoRouter.routes(), gene2PhenoRouter.allowedMet
 router.use('/genomebuild', genomeBuildRouter.routes(), genomeBuildRouter.allowedMethods());
 router.use('/hpo', hpoRouter.routes(), hpoRouter.allowedMethods());
 
-const staticServer = new Koa();
-staticServer.use(serve(path.join(__dirname, '../static')));
-
 router.get('/', async (ctx) => {
   ctx.body = "<h1>I be healthful</h1>";
+});
+
+router.get('/static/*', async (ctx) => {
+  const fsPath = path.join(__dirname, '..', ctx.path);
+  await serveStatic(ctx, fsPath);
 });
 
 router.post('/viewAlignments', async (ctx) => {
@@ -58,6 +59,7 @@ router.get('/alignmentHeader', async (ctx) => {
 });
 router.post('/alignmentHeader', async (ctx) => {
   const params = JSON.parse(ctx.request.body);
+  console.log('url going into alignment header: ' + params.url);
   await handle(ctx, 'alignmentHeader.sh', [params.url]);
 });
 
@@ -128,7 +130,7 @@ router.post('/vcfReadDepth', async (ctx) => {
 router.post('/alignmentCoverage', async (ctx) => {
 
   const params = JSON.parse(ctx.request.body);
-  console.log(JSON.stringify(params, null, 2));
+   console.log(JSON.stringify(params, null, 2));
 
   const url = params.url;
   const indexUrl = params.indexUrl;
@@ -144,8 +146,6 @@ router.post('/alignmentCoverage', async (ctx) => {
       .filter(d => d.name && d.start && d.end)
       .map(d => d.name + ":" + d.start + ':' + d.end)
       .join(',');
-  console.log('REGION ARG GOING INTO ALIGNMENTCOVERAGE.SH');
-  console.log(JSON.stringify(coverageRegionsArg));
 
   const maxPointsArg = "-m " + maxPoints;
 
@@ -199,18 +199,6 @@ router.post('/geneCoverage', async (ctx) => {
     await handle(ctx, 'geneCoverage.sh', args);
 });
 
-router.post('/filteredReadsCount', async (ctx) => {
-    const params = JSON.parse(ctx.request.body);
-    console.log(JSON.stringify(params, null, 2));
-   
-    const url = params.url;
-    const indexUrl = params.indexUrl;
-    const samtoolsRegion = params.regionStr;
-    const qualityCutoff = params.qualityCutoff;
-    const args = [url, indexUrl, samtoolsRegion, qualityCutoff];
-
-    await handle(ctx, 'filteredReadsCount.sh', args, { ignoreStderr: true });
-});
 
 router.get('/normalizeVariants', async (ctx) => {
   const vcfUrl = ctx.query.vcfUrl;
@@ -334,14 +322,12 @@ router.post('/annotateEnrichmentCounts', async (ctx) => {
     await handle(ctx, 'annotateEnrichmentCounts.sh', args, { ignoreStderr: true });
 });
 
-router.post('/getSomaticVariants', async (ctx) => {
-  
+router.post('/annotateSomaticVariants', async (ctx) => {
   const params = JSON.parse(ctx.request.body);
-  console.log(JSON.stringify(params, null, 2));
-
-  const args = [params.vcfUrl, params.qualCutoff, params.totalReadCutoff, params.normalCountCutoff, params.tumorCountCutoff, params.normalAfCutoff, params.tumorAfCutoff, params.normalSampleIdx, params.totalSampleNum];
+  const vepCacheDir = dataPath('vep-cache');
+  const args = [params.vcfUrl, params.selectedSamplesStr, params.geneRegionsStr, params.somaticFilterPhrase, params.genomeBuildName, vepCacheDir];
   
-  await handle(ctx, 'getSomaticVariants.sh', args, { ignoreStderr: false });
+  await handle(ctx, 'annotateSomaticVariants.sh', args, { ignoreStderr: false });
 });
 
 router.post('/freebayesJointCall', async (ctx) => {
@@ -485,6 +471,8 @@ router.post('/checkBamBai', async (ctx) => {
     await handle(ctx, 'checkBamBai.sh', args, { ignoreStderr: true });
 });
 
+
+
 // vcf.iobio endpoints
 router.post('/vcfStatsStream', async (ctx) => {
 
@@ -551,7 +539,6 @@ function genRegionsStr(regions) {
 }
 
 app
-  .use(mount('/static', staticServer))
   .use(logger())
   .use(cors({
     origin: '*',
