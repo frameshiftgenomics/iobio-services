@@ -80,7 +80,7 @@
     flex-direction: row
     flex-wrap: wrap
     justify-content: space-around
-    padding-top: 5px
+    padding-top: 10px
 
 
 
@@ -322,6 +322,25 @@
       color: $link-color
       font-size: 17px
       padding-right: 5px
+
+#source-indicator-text
+  // content: "\a"
+  // white-space: pre
+  font-size: 12px
+  color: $app-color
+
+.myBadge
+  background-color: #efeeee 
+  border-radius: 90px 
+  height: 16px
+  color: #717171 
+  margin-left: 1px 
+  text-align: center 
+  vertical-align: middle
+  width: 16px
+  display: inline-block
+  font-size: 11px
+  font-family: raleway
 </style>
 
 <style lang="css">
@@ -335,13 +354,12 @@
   <v-card v-show="selectedVariant" id="variant-inspect" class="app-card full-width">
 
     <div style="display:flex;align-items:flex-start;justify-content:flex-start;margin-bottom:10px">
-      <div  id="variant-heading" v-if="selectedVariant" class="text-xs-left">
+      <div  id="variant-heading" v-if="selectedVariant" class="text-xs-left" style="display: inline-grid">
         <span class="pr-1" v-if="selectedVariantRelationship != 'proband'">
           <span class="rel-header">{{ selectedVariantRelationship | showRelationship }}</span>
         </span>
 
-        Variant in {{ selectedGene.gene_name }}
-
+        <span>Variant in {{ selectedGene.gene_name }}</span>
 
 
       </div>
@@ -416,6 +434,21 @@
 
     </div>
 
+    
+    <span v-if="launchedFromClin && selectedGene.gene_name">
+      <div>
+        <span id="source-indicator-text" class="chart-label">Source: </span>
+        <span v-for="(source, idx) in getSourceIndicatorBadge" :key="idx">
+          <span
+            v-tooltip.top-center="`${selectedGeneSources.source[idx]}`"
+            class="ml-1 mr-1">
+            <div left color="grey lighten-1" class="myBadge">
+              <span> {{ source }}</span>
+            </div>
+          </span>
+        </span>
+      </div>
+    </span>
 
 
     <div class="variant-inspect-body">
@@ -499,10 +532,10 @@
                     <span v-if="geneRank.source"> {{ geneRank.source }}</span>
                   </v-chip>
                   <span v-if="geneHit.searchTerm && geneRank.source!=='HPO'" class="pheno-search-term">
-                    {{ geneHit.searchTerm | to-firstCharacterUppercase }}
+                    {{ geneHit.searchTerm | firstCharacterToUppercase }}
                   </span>
                   <span v-else-if="geneRank.source==='HPO' && geneRank.hpoPhenotype" class="pheno-search-term">
-                    {{ geneRank.hpoPhenotype | to-firstCharacterUppercase }}
+                    {{ geneRank.hpoPhenotype | firstCharacterToUppercase }}
                   </span>
                 </div>
               </div>
@@ -535,7 +568,7 @@
           <div class='variant-column-hint' v-if="isSimpleMode">
             Clinical significance based on variant type, location, and documentation in ClinVar.
           </div>
-          <variant-inspect-row  v-for="clinvar,clinvarIdx in info.clinvarLinks" :key="clinvarIdx"
+          <variant-inspect-row  v-for="(clinvar,clinvarIdx) in info.clinvarLinks" :key="clinvarIdx"
             :clazz="getClinvarClass(clinvar.significance)" :value="clinvar.clinsig" :label="`ClinVar`" :link="clinvar.url" >
           </variant-inspect-row>
 
@@ -544,7 +577,7 @@
             <span>{{ info.clinvarTrait }} </span>
           </div>
 
-          <variant-inspect-row
+          <variant-inspect-row v-if="info.vepImpact && info.vepImpact !== ''"
             :clazz="getImpactClass(info.vepImpact)" :value="info.vepConsequence"  :label="``"  >
           </variant-inspect-row>
 
@@ -762,7 +795,8 @@ export default {
     info: null,
     coverageDangerRegions: null,
     user: null,
-    showAssessment: null
+    showAssessment: null,
+    launchedFromClin: null,
   },
   data() {
     return {
@@ -819,6 +853,7 @@ export default {
 
       enterCommentsClicked: false,
       showMoreGeneAssociationsDialog: false,
+      selectedGeneSources: {},
     }
   },
 
@@ -1601,6 +1636,23 @@ export default {
 
         }
       }
+    },
+    sourceIndicatorLabel: function() {
+      if(this.launchedFromClin) {
+        let label = "Variants defined in ";
+        let gene_name = this.selectedGene.gene_name;
+        let source = this.cohortModel.geneModel.getSourceForGenes()[gene_name].source.join(", ");
+        label += source
+        return label;
+      }
+    },
+    
+    getSourceIndicatorBadge: function() {
+      if(this.launchedFromClin){
+        this.selectedGeneSources.source = this.cohortModel.geneModel.getSourceForGenes()[this.selectedGene.gene_name].source;
+        this.selectedGeneSources.sourceIndicator = this.cohortModel.geneModel.getSourceForGenes()[this.selectedGene.gene_name].sourceIndicator;
+        return this.cohortModel.geneModel.getSourceForGenes()[this.selectedGene.gene_name].sourceIndicator;
+      }
     }
   },
 
@@ -1614,7 +1666,6 @@ export default {
       let self = this;
       this.$nextTick(function() {
           this.loadData();
-
           if (self.selectedVariantRelationship === "known-variants") {
               self.annotateClinVarVariant(self.selectedVariant);
           }
@@ -1623,6 +1674,12 @@ export default {
   },
 
   filters: {
+
+    firstCharacterToUppercase(s) {
+      if(s){
+      return s.charAt(0).toUpperCase() + s.slice(1)
+      }
+    },
 
     showRelationship: function(buf) {
       if (buf == null) {
@@ -1648,7 +1705,6 @@ export default {
       if(this.selectedVariant){
           this.$nextTick(function() {
               this.loadData();
-
               if (self.selectedVariantRelationship === "known-variants") {
                   self.annotateClinVarVariant(self.selectedVariant);
               }

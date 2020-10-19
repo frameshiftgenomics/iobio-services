@@ -150,6 +150,7 @@ export default {
       filteredVariants: null,
       showFilter: false,
       selectedVariant: null,
+      selectedVariantRelationship: null,
     },
     data() {
       return {
@@ -204,7 +205,6 @@ export default {
       },
       update: function() {
         var self = this;
-
         if (self.variants && self.data.features) {
             // Set the vertical layer count so that the height of the chart can be recalculated
           if (self.variants.maxLevel == null) {
@@ -222,6 +222,7 @@ export default {
           self.variantChart.regionEnd(self.regionEnd);
 
           self.variantChart.width(self.width);
+          self.variantChart.selectedVariant(self.selectedVariant);
 
 
           var selection = d3.select(self.$el).datum( [self.variants] );
@@ -259,8 +260,8 @@ export default {
           return matchingVariant;
         }
       },
-      hideVariantCircle: function(container, pinned) {
-        this.variantChart.hideCircle()(container, pinned);
+      hideVariantCircle: function(container, pinned, isCalled, variant) {
+        this.variantChart.hideCircle()(container, pinned, isCalled, variant);
       },
       setVariantChart: function() {
         this.$emit('updateVariantChart', this.variantChart);
@@ -268,6 +269,27 @@ export default {
       showFlaggedVariant: function(variant, container) {
         this.variantChart.showFlaggedVariant(container, variant);
       },
+
+      isEqual: function(a, b) {
+        let isEqual = false
+        if(a.length === b.length) {
+          isEqual = true;
+          for (let i = 0; i < a.length; i++) {
+            let variant = a[i];
+            let v = b[i];
+            if(variant){
+
+            if(variant.start !== v.start ||
+              variant.ref !== v.ref ||
+              variant.alt !== v.alt){
+                isEqual = false;
+              }
+            }
+          }
+        }
+        return isEqual;
+      },
+
 
       intersectVariants(){
           let copyVariants = Object.assign({}, this.filteredVariants);
@@ -290,7 +312,9 @@ export default {
     watch: {
       variants: function(oldVar, newVar) {
         if(oldVar && oldVar.features && newVar && newVar.features){
-          this.update();
+          if(! this.isEqual(oldVar.features, newVar.features)){
+            this.update();
+          }
         }
       },
 
@@ -300,6 +324,9 @@ export default {
         }
         else{
           this.variants = this.data;
+        }
+        if(this.model.relationship === this.selectedVariantRelationship) {
+          this.onVariantClick(this.selectedVariant);
         }
       },
 
