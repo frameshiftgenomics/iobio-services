@@ -151,6 +151,8 @@
                 default: 0,
                 type: Number
             },
+            relationship: null,
+
             regionEnd: {
                 default: 0,
                 type: Number
@@ -217,7 +219,6 @@
             this.regionSpan = this.regionStart + "-" + this.regionEnd;
 
             this.draw();
-            this.update();
         },
 
         methods: {
@@ -232,12 +233,13 @@
                     .showXAxis(this.showXAxis)
                     .showBrush(this.showBrush)
                     .modelName(this.modelName)
+                    .relationship(this.relationship)
                     .trackHeight(this.trackHeight)
                     .cdsHeight(this.cdsHeight)
                     .showLabel(this.showLabel)
                     .transcriptClass(this.transcriptClass)
-                    .featureClass( function(feature, i) {
-                        return self.featureClass(feature, i);
+                    .featureClass( function(feature, i, relationship) {
+                        return self.featureClass(feature, i, relationship);
                     })
                     .regionStart(this.regionStart)
                     .regionEnd(this.regionEnd)
@@ -274,6 +276,7 @@
 
             update: function() {
                 var self = this;
+
                 if (self.data && self.data.length > 0 && self.data[0] != null && Object.keys(self.data[0]).length > 0) {
                     this.geneChart.regionStart(this.regionStart);
                     this.geneChart.regionEnd(this.regionEnd);
@@ -287,20 +290,11 @@
             setGeneChart: function() {
                 this.$emit('updateGeneChart', this.geneChart);
             },
-            concatKeys: function(transcripts) {
-                if (transcripts) {
-                    return transcripts.map(function(tx) {
-                        return tx && tx.transcript_id ? tx.transcript_id : '';
-                    }).join(" ");
-                } else {
-                    return "";
-                }
-            }
         },
         watch: {
-            data: function(newData, oldData) {
-                let self = this;
-                if ( $(self.$el).find("svg").length == 0 ||  self.concatKeys(newData) != self.concatKeys(oldData) ) {
+            data: function(oldData, newData) {
+                let bool = JSON.stringify(oldData) === JSON.stringify(newData);
+                if(!bool && newData) {
                     this.update();
                 }
             },
@@ -311,8 +305,10 @@
             regionEnd: function() {
                 this.regionSpan = this.regionStart + "-" + this.regionEnd;
             },
-            regionSpan: function() {
-                this.update();
+            regionSpan: function(oldRegion, newRegion) {
+                if(oldRegion !== newRegion) {
+                    this.update();
+                }
             }
         }
     }

@@ -52,7 +52,7 @@ services:
       - "traefik.http.routers.traefik.tls.certresolver=leresolver"
       - "traefik.http.routers.traefik.entrypoints=websecure"
       - "traefik.http.routers.traefik.middlewares=authtraefik"
-      - "traefik.http.middlewares.authtraefik.basicauth.users=nebula_admin:$$apr1$$MnmE3sKE$$1HICSQx95gmlR0EsdplEG0" # user/password
+      - "traefik.http.middlewares.authtraefik.basicauth.users=nebula_admin:$$apr1$$p6V8SbO.$$aYQWdLeNVDq3pL.rHvC.C0" # user/password
       - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
       # Global redirect to https

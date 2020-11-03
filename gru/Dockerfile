@@ -19,16 +19,16 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     cryptsetup-bin \
     libssl-dev \
     tzdata \
-    python-pip
+    python3-pip
 
 # Set timezone (needed for singularity)
 ENV TZ=America/New_York
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Install python packages
-RUN pip install nltk
+RUN pip3 install nltk
 
-RUN python -m nltk.downloader -d /usr/share/nltk_data wordnet
+RUN python3 -m nltk.downloader -d /usr/share/nltk_data wordnet
 
 # Install go
 ENV GOLANG_VERSION 1.14

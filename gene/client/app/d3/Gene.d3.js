@@ -20,6 +20,7 @@ export default function geneD3() {
   var geneD3_showLabel = false;
   var geneD3_showXAxis = true;
   var geneD3_modelName = null;
+  var geneD3_relationship = null;
 
 
 
@@ -75,7 +76,17 @@ export default function geneD3() {
 
     selection.each(function(data) {
 
-       // calculate height
+      let dataNew = [];
+      let uniqueIds = [];
+      for (let i = 0; i < data.length; i++) {
+        if (!uniqueIds.includes(data[i].transcript_id)) {
+          uniqueIds.push(data[i].transcript_id);
+          dataNew.push(data[i]);
+        }
+      }
+      data = dataNew;
+
+      // calculate height
        var padding = data.length > 1 ? geneD3_trackHeight/2 : 0;
        geneD3_height = data.length * (geneD3_trackHeight + padding);
 
@@ -184,6 +195,7 @@ export default function geneD3() {
       // add elements
       var transcript = g.selectAll('.transcript')
                         .data(data, function(d) { return d.transcript_id; });
+
 
       transcript.enter().append('g')
           .attr('class', transcriptClass)
@@ -300,7 +312,7 @@ export default function geneD3() {
         });
       }).enter().append('rect')
           .attr('class', function(d,i) {
-            return featureClass(d,i);
+            return featureClass(d,i, geneD3_relationship);
           })
           .attr("modelName", geneD3_modelName)
           .attr('rx', borderRadius)
@@ -387,16 +399,13 @@ export default function geneD3() {
         });
       })
       .attr('class', function(d,i) {
-            return featureClass(d,i);
+            return featureClass(d,i, geneD3_relationship);
       });
-
-
 
       // update
       transcript.transition()
           .duration(700)
           .attr('transform', function(d,i) { return "translate(0," + y(i+1) + ")"});
-
 
       transcript.selectAll('.reference').transition()
         .duration(700)
@@ -407,14 +416,12 @@ export default function geneD3() {
         .duration(700)
         .attr('d', centerArrow);
 
-
       transcript.selectAll('.name').transition()
         .duration(700)
         .attr('x', function(d) { return margin.left > 5 ?  5 - margin.left : 0; })
         .attr('y', function(d) { return margin.left > 5 ? geneD3_trackHeight - (geneD3_trackHeight/2) + 2 : -10; })
         .text(function(d) { return d[1]; })
         .style('fill-opacity', 1);
-
 
       transcript.selectAll('.utr,.cds,.exon').sort(function(a,b){ return parseInt(a.start) - parseInt(b.start)})
         .transition()
@@ -432,8 +439,6 @@ export default function geneD3() {
       svg.select(".x.axis").transition()
           .duration(200)
           .call(xAxis);
-
-
 
       if (geneD3_showBrush) {
         var brushHeight = geneD3_height + margin.top + margin.bottom;
@@ -460,16 +465,7 @@ export default function geneD3() {
           .attr("transform", function(d,i) {
             return i ?  "translate(-4," + (brushHeight/2) + ") rotate(-90)" : "translate(4," + (brushHeight/2) + ") rotate(90)";
           });
-
       }
-
-    });
-
-  }
-  // moves selection to front of svg
-  function moveToFront(selection) {
-    return selection.each(function(){
-       this.parentNode.appendChild(this);
     });
   }
 
@@ -481,12 +477,61 @@ export default function geneD3() {
       .filter(function(f) { var ft = f.feature_type.toLowerCase(); return ft == 'utr' || ft == 'cds'})
       .sort(function(a,b) { return parseInt(a.start) - parseInt(b.start)});
 
-    for (var i=0; i < sorted.length-1; i++) {
-      var currSpan = parseInt(sorted[i+1].start) - parseInt(sorted[i].end);
-      if (span < currSpan) {
-        span = currSpan;
-        center = parseInt(sorted[i].end) + span/2;
+    sorted = sorted.filter(function(f){
+      return parseInt(f.start) >= geneD3_regionStart && parseInt(f.end) <= geneD3_regionEnd;
+    })
+    let positions = [];
+
+    for(let i = 0; i < sorted.length; i++){
+      positions.push(parseInt(sorted[i].start));
+      positions.push(parseInt(sorted[i].end));
+    }
+    positions = positions.sort();
+
+    let lm = null;
+    let rm = null;
+
+    if(positions.length > 0) {
+      lm = positions[0];
+      rm = positions.slice(-1)[0];
+    }
+
+    let edgeSpan = Math.max(lm - geneD3_regionStart, geneD3_regionEnd -rm);
+    let edgeCenter = null;
+
+    if(lm - geneD3_regionStart > geneD3_regionEnd -rm){
+      edgeCenter = (lm + geneD3_regionStart)/2
+    }
+    else{
+      edgeCenter = (rm + geneD3_regionEnd)/2;
+    }
+
+    if(sorted.length > 1) {
+      for (var i = 0; i < sorted.length - 1; i++) {
+        let currSpan = parseInt(sorted[i + 1].start) - parseInt(sorted[i].end);
+        if (span < currSpan) {
+          span = currSpan;
+          center = parseInt(sorted[i].end) + span / 2;
+        }
       }
+      if(edgeSpan > span){
+        center = edgeCenter;
+      }
+    }
+
+    else if(sorted.length === 1){
+      let s = parseInt(sorted[0].start);
+      let e = parseInt(sorted[0].end);
+
+      if(s - geneD3_regionStart > geneD3_regionEnd - e){
+        center = (s + geneD3_regionStart)/2;
+      }
+      else{
+        center = (geneD3_regionEnd + e)/2;
+      }
+    }
+    else if(sorted.length === 0){
+      center =  geneD3_regionEnd - ((geneD3_regionEnd - geneD3_regionStart)/2);
     }
     d.center = center;
     return [d];
@@ -503,15 +548,12 @@ export default function geneD3() {
   }
 
   function tickFormatter (d,i) {
-
     if ((d / 1000000) >= 1)
       d = d / 1000000 + "M";
     else if ((d / 1000) >= 1)
       d = d / 1000 + "K";
     return d;
   }
-
-
 
   chart.transcriptClass = function(_) {
     if (!arguments.length) return transcriptClass;
@@ -585,11 +627,6 @@ export default function geneD3() {
     return chart;
   };
 
-  chart.yAxis = function(_) {
-    if (!arguments.length) return yAxis;
-    yAxis = _;
-    return chart;
-  };
   chart.trackHeight = function(_) {
     if (!arguments.length) return geneD3_trackHeight;
     geneD3_trackHeight = _;
@@ -640,6 +677,11 @@ export default function geneD3() {
   chart.modelName = function(_) {
     if (!arguments.length) return modelName;
     geneD3_modelName = _;
+    return chart;
+  }
+  chart.relationship= function(_) {
+    if (!arguments.length) return relationship;
+    geneD3_relationship = _;
     return chart;
   }
   chart.selectedTranscript = function(_) {

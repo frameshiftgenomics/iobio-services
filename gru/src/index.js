@@ -3,8 +3,6 @@ const Router = require('koa-router');
 const cors = require('@koa/cors');
 const logger = require('koa-logger');
 const bodyParser = require('koa-bodyparser');
-const mount = require('koa-mount');
-const serve = require('koa-static');
 const path = require('path');
 const { run } = require('./process.js');
 const { mktemp } = require('./mktemp.js');
@@ -13,8 +11,10 @@ const process = require('process');
 const gene2PhenoRouter = require('./gene2pheno.js');
 const geneInfoRouter = require('./geneinfo.js');
 const genomeBuildRouter = require('./genomebuild.js');
+const hpoRouter = require('./hpo.js');
 const { dataPath } = require('./utils.js');
 const fs = require('fs');
+const { serveStatic } = require('./static.js');
 
 let port = 9001;
 if (process.argv[2]) {
@@ -27,12 +27,15 @@ const router = new Router();
 router.use('/geneinfo', geneInfoRouter.routes(), geneInfoRouter.allowedMethods());
 router.use('/gene2pheno', gene2PhenoRouter.routes(), gene2PhenoRouter.allowedMethods());
 router.use('/genomebuild', genomeBuildRouter.routes(), genomeBuildRouter.allowedMethods());
-
-const staticServer = new Koa();
-staticServer.use(serve(path.join(__dirname, '../static')));
+router.use('/hpo', hpoRouter.routes(), hpoRouter.allowedMethods());
 
 router.get('/', async (ctx) => {
   ctx.body = "<h1>I be healthful</h1>";
+});
+
+router.get('/static/*', async (ctx) => {
+  const fsPath = path.join(__dirname, '..', ctx.path);
+  await serveStatic(ctx, fsPath);
 });
 
 router.post('/viewAlignments', async (ctx) => {
@@ -56,6 +59,7 @@ router.get('/alignmentHeader', async (ctx) => {
 });
 router.post('/alignmentHeader', async (ctx) => {
   const params = JSON.parse(ctx.request.body);
+  console.log('url going into alignment header: ' + params.url);
   await handle(ctx, 'alignmentHeader.sh', [params.url]);
 });
 
@@ -101,21 +105,22 @@ router.post('/alignmentStatsStream', async (ctx) => {
 
 // gene.iobio & oncogene & cohort-gene endpoints
 //
-// TODO: need to change these to POSTs!
-router.get('/variantHeader', async (ctx) => {
-  await handle(ctx, 'variantHeader.sh', [ctx.query.url, ctx.query.indexUrl]);
-});
-// TODO: SJG TEST
+// TODO: test post version and delete get above 
 router.post('/variantHeader', async (ctx) => {
     const params = JSON.parse(ctx.request.body);
     await handle(ctx, 'variantHeader.sh', [params.url, params.indexUrl]);
 });
 
+router.post('/getChromosomes', async (ctx) => {
+    const params = JSON.parse(ctx.request.body);
+    console.log(JSON.stringify(params, null, 2));
+    await handle(ctx, 'getChromosomes.sh', [params.url, params.indexUrl]);
+});
 
 router.get('/vcfReadDepth', async (ctx) => {
   await handle(ctx, 'vcfReadDepth.sh', [ctx.query.url]);
 });
-// TODO: SJG TEST
+// TODO: test post version and delete above
 router.post('/vcfReadDepth', async (ctx) => {
     const params = JSON.parse(ctx.request.body);
     await handle(ctx, 'vcfReadDepth.sh', [params.url]);
@@ -125,14 +130,14 @@ router.post('/vcfReadDepth', async (ctx) => {
 router.post('/alignmentCoverage', async (ctx) => {
 
   const params = JSON.parse(ctx.request.body);
-  console.log(JSON.stringify(params, null, 2));
+   console.log(JSON.stringify(params, null, 2));
 
   const url = params.url;
   const indexUrl = params.indexUrl;
   const samtoolsRegion = params.samtoolsRegion;
   const maxPoints = params.maxPoints;
   const coverageRegions = params.coverageRegions;
-
+  const qualityCutoff = params.qualityCutoff;
   const samtoolsRegionArg = samtoolsRegion.refName + ':' + samtoolsRegion.start + '-' + samtoolsRegion.end;
   const spanningRegionArg = "-r " + samtoolsRegion.refName + ':' + samtoolsRegion.start + ':' + samtoolsRegion.end;
 
@@ -141,12 +146,10 @@ router.post('/alignmentCoverage', async (ctx) => {
       .filter(d => d.name && d.start && d.end)
       .map(d => d.name + ":" + d.start + ':' + d.end)
       .join(',');
-  console.log('REGION ARG GOING INTO ALIGNMENTCOVERAGE.SH');
-  console.log(JSON.stringify(coverageRegionsArg));
 
   const maxPointsArg = "-m " + maxPoints;
 
-  const args = [url, indexUrl, samtoolsRegionArg, maxPointsArg, spanningRegionArg, coverageRegionsArg];
+  const args = [url, indexUrl, samtoolsRegionArg, maxPointsArg, spanningRegionArg, coverageRegionsArg, qualityCutoff];
 
   await handle(ctx, 'alignmentCoverage.sh', args, { ignoreStderr: true });
 });
@@ -172,7 +175,7 @@ router.get('/geneCoverage', async (ctx) => {
 
   await handle(ctx, 'geneCoverage.sh', args);
 });
-// TODO: SJG TEST
+// TODO: test post version and delete above
 router.post('/geneCoverage', async (ctx) => {
     const params = JSON.parse(ctx.request.body);
 
@@ -217,7 +220,7 @@ router.get('/normalizeVariants', async (ctx) => {
 
   await handle(ctx, 'normalizeVariants.sh', args);
 });
-// TODO: SJG TEST
+// TODO: test post version and delete above
 router.post('/normalizeVariants', async (ctx) => {
     const params = JSON.parse(ctx.request.body);
 
@@ -270,7 +273,6 @@ router.get('/annotateVariants', async (ctx) => {
   //await handle(ctx, 'annotateVariants.sh', args);
   await handle(ctx, 'annotateVariants.sh', args, { ignoreStderr: true });
 });
-// TODO: SJG do I only need to json parse once?
 router.post('/annotateVariants', async (ctx) => {
 
     const params = JSON.parse(ctx.request.body);
@@ -297,6 +299,35 @@ router.post('/annotateVariants', async (ctx) => {
     ];
 
     await handle(ctx, 'annotateVariants.sh', args, { ignoreStderr: true });
+});
+
+router.post('/annotateEnrichmentCounts', async (ctx) => {
+    const params = JSON.parse(ctx.request.body);
+    console.log(JSON.stringify(params, null, 2));
+
+    const tbiUrl = params.tbiUrl ? params.tbiUrl : '';
+    const contigStr = genContigFileStr(params.refNames);
+    const regionStr = genRegionsStr(params.regions);
+    const refFastaFile = dataPath(params.refFastaFile);
+    const filterArgs = params.filterArgs ? params.filterArgs : '';
+    const experStr = params.expIdString ? params.expIdString : '';
+    const controlStr = params.controlIdString ? params.controlIdString : '';
+
+    const args = [
+        params.vcfUrl, tbiUrl, regionStr, contigStr,
+        refFastaFile, params.filterArgs,
+        experStr, controlStr
+    ];
+
+    await handle(ctx, 'annotateEnrichmentCounts.sh', args, { ignoreStderr: true });
+});
+
+router.post('/annotateSomaticVariants', async (ctx) => {
+  const params = JSON.parse(ctx.request.body);
+  const vepCacheDir = dataPath('vep-cache');
+  const args = [params.vcfUrl, params.selectedSamplesStr, params.geneRegionsStr, params.somaticFilterPhrase, params.genomeBuildName, vepCacheDir];
+  
+  await handle(ctx, 'annotateSomaticVariants.sh', args, { ignoreStderr: false });
 });
 
 router.post('/freebayesJointCall', async (ctx) => {
@@ -432,6 +463,15 @@ router.post('/getIdColumns', async (ctx) => {
     await handle(ctx, 'getIdColumns.sh', args, { ignoreStderr: true });
 });
 
+router.post('/checkBamBai', async (ctx) => {
+    const params = JSON.parse(ctx.request.body);
+    console.log(JSON.stringify(params, null, 2));
+
+    const args = [ params.url, params.indexUrl, params.region ];
+    await handle(ctx, 'checkBamBai.sh', args, { ignoreStderr: true });
+});
+
+
 
 // vcf.iobio endpoints
 router.post('/vcfStatsStream', async (ctx) => {
@@ -453,8 +493,7 @@ router.post('/vcfStatsStream', async (ctx) => {
   console.log(args);
 
   await handle(ctx, 'vcfStatsStream.sh', args, { ignoreStderr: true });
-});
-
+}); 
 
 
 async function handle(ctx, scriptName, args, options) {
@@ -500,9 +539,9 @@ function genRegionsStr(regions) {
 }
 
 app
-  .use(mount('/static', staticServer))
   .use(logger())
   .use(cors({
+    origin: '*',
     maxAge: 86400,
   }))
   .use(bodyParser({
@@ -512,10 +551,4 @@ app
   }))
   .use(router.routes())
   .use(router.allowedMethods())
-  .listen(port, '0.0.0.0', onListening);
-
-function onListening () {
-  const { address, port } = this.address();
-  const protocol = this.addContext ? 'https' : 'http';
-  console.log(`Listening on ${protocol}://${address}:${port}`);
-}
+  .listen(port);
