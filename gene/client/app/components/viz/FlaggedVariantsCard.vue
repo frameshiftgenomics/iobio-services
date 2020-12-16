@@ -511,12 +511,12 @@
   white-space: normal
 
 .source-indicator-badge
-  background-color: #efeeee 
-  border-radius: 90px 
+  background-color: #efeeee
+  border-radius: 90px
   height: 16px
-  color: #717171 
-  margin-left: 1px 
-  text-align: center 
+  color: #717171
+  margin-left: 1px
+  text-align: center
   vertical-align: middle
   width: 16px
   display: inline-block
@@ -603,10 +603,10 @@
           <template v-for="variant in flaggedGene.variants">
 
             <v-list-tile
-            :key="variant.start + ' ' + variant.ref + ' ' + variant.alt"
-            ripple
-            :class="{'list-item': true, selected: clickedVariant == variant ? true : false}"
-            @click="onVariantSelected(variant)">
+                :class="{'list-item': true, selected: isSelected(variant)}"
+                :key="variant.start + ' ' + variant.ref + ' ' + variant.alt"
+                @click="onVariantSelected(variant)"
+                ripple>
 
               <v-list-tile-avatar >
                <v-chip class="variant-number" >
@@ -658,8 +658,8 @@
 
                           <app-icon
                           style="width: 15px;height: 15px;display: inline-block;margin-top: 2px;"
-                           :icon="variant.inheritance"
-                           v-if="!isBasicMode && variant.inheritance && variant.inhertance != '' && variant.inheritance.indexOf('n/a') == -1"
+                           :icon="variant.inheritanceGlyph ? variant.inheritanceGlyph : variant.inheritance"
+                           v-if="!isBasicMode && variant.inheritance && variant.inheritance != '' && variant.inheritance.indexOf('n/a') == -1"
                            class="inheritance-badge" height="15" width="15">
                           </app-icon>
 
@@ -760,7 +760,7 @@
       </v-list>
     </v-expansion-panel-content>
   </v-expansion-panel>
-  
+
 
   </v-card>
 
@@ -818,7 +818,8 @@ export default {
     genesInProgress: null,
     interpretationMap: null,
     toClickVariant: null,
-    variantSetCounts: null
+    variantSetCounts: null,
+    selectedVariant: null,
   },
 
   data() {
@@ -842,6 +843,15 @@ export default {
 
     onClose(){
       this.showPopup = false;
+    },
+
+    isSelected: function(v){
+      let stashedVariant = this.selectedVariant;
+      return ( v && stashedVariant
+          && v.start === stashedVariant.start
+          && v.end === stashedVariant.end
+          && v.ref === stashedVariant.ref
+          && v.alt === stashedVariant.alt);
     },
 
     setGenesList(genesList){
@@ -1250,7 +1260,7 @@ export default {
         return label;
       }
     },
-    
+
     getSourceIndicatorBadge: function(gene_name) {
       if(this.launchedFromClin){
         this.selectedGeneSources.source = this.cohortModel.geneModel.getSourceForGenes()[gene_name].source;
@@ -1279,6 +1289,9 @@ export default {
   watch: {
     geneNames: function(newGeneNames, oldGeneNames) {
       this.populateGeneLists();
+    },
+    selectedVariant: function(){
+      this.clickedVariant = this.selectedVariant;
     },
     isFullAnalysis: function() {
       this.populateGeneLists();

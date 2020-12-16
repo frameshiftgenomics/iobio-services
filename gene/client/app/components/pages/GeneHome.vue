@@ -232,11 +232,13 @@ main.content.clin, main.v-content.clin
     <navigation
       v-if="geneModel"
       ref="navRef"
+      :showFilesButton="showFilesButton"
       :isEduMode="isEduMode"
       :isBasicMode="isBasicMode"
       :forMyGene2="forMyGene2"
       :isSimpleMode="isSimpleMode"
-      :isCommercial="isCommercial"
+      :showBlogsAndTutorials="showBlogsAndTutorials"
+      :isPhenolyzerPermitted="isPhenolyzerPermitted"
       :analyzeAllInProgress="cacheHelper.analyzeAllInProgress"
       :callAllInProgress="cacheHelper.callAllInProgress"
       :selectedGene="selectedGene"
@@ -267,6 +269,7 @@ main.content.clin, main.v-content.clin
       :badgeCounts="badgeCounts"
       :showFilesProp="showFiles"
       :showWelcome="showWelcome"
+      :launchedFromDemo="launchedFromDemo"
       @input="onGeneNameEntered"
       @load-demo-data="onLoadDemoData"
       @clear-cache="promiseClearCache"
@@ -291,6 +294,7 @@ main.content.clin, main.v-content.clin
       @call-variants="callVariants"
       @filter-settings-applied="onFilterSettingsApplied"
       @isDemo="onIsDemo"
+      @isTrio="onIsTrio"
       @variant-count-changed="variantCountChanged"
       @toggle-save-modal="toggleSaveModal(true)"
       @on-welcome-changed="onWelcomeChanged"
@@ -392,7 +396,7 @@ main.content.clin, main.v-content.clin
           :isBasicMode="isBasicMode"
           :isSimpleMode="isSimpleMode"
           :isFullAnalysis="isFullAnalysis"
-          :isCommercial="isCommercial"
+          :isOMIMPermitted="isOMIMPermitted"
           :launchedFromClin="launchedFromClin"
           :launchedFromHub="launchedFromHub"
           :showSfariTrackToggle="cohortModel && cohortModel.isSfariProject"
@@ -1014,9 +1018,13 @@ export default {
       * This variable controls if gene should show a "simplified" view
       */
       isSimpleMode: process.env.DEFAULT_MODE === 'simple',
-      isCommercial: !!(process.env.IS_COMMERCIAL && process.env.IS_COMMERCIAL === 'true'),
+      isPhenolyzerPermitted: process.env.PHENOLYZER_PERMITTED && process.env.PHENOLYZER_PERMITTED === 'true',
+      isOMIMPermitted: process.env.OMIM_API_KEY && process.env.OMIM_API_KEY.length > 0,
 
       showIntro: false,
+      showFilesButton: true,  // does the files 'upload' button appear in the nav bar?
+
+      showBlogsAndTutorials: (process.env.SHOW_BLOGS_AND_TUTORIALS && process.env.SHOW_BLOGS_AND_TUTORIALS === 'true') || !process.env.SHOW_BLOGS_AND_TUTORIALS,
 
 
       closeIntro: false,
@@ -1614,19 +1622,19 @@ export default {
                 self.showLeftPanelForGenes();
               }
             } else {
-              self.refreshCoverageCounts();
-              if(self.launchedFromClin) {
+              if (self.selectedVariant == null) {
+                self.promiseSelectFirstFlaggedVariant()
+                    // .then(function() {
+                    //   self.$refs.navRef.onShowVariantsTab();
+                    // })
+              }
+              else if(self.launchedFromClin){
+
                 self.promiseSelectFirstFlaggedVariant()
                     .then(function () {
                       self.$refs.navRef.onShowVariantsTab();
                     })
               }
-              else if(!self.selectedVariant) {
-                setTimeout(function () {
-                  self.promiseSelectFirstFlaggedVariant();
-                }, 2000);
-              }
-              self.cohortModel.cacheHelper.refreshGeneBadges();
             }
           }
         });
@@ -2003,7 +2011,7 @@ export default {
       }
     },
 
-    showLeftPanelWhenFlaggedVariants: function() {
+    showLeftPanelWhenFlaggedVariants: function(option) {
       let self = this;
       if (!self.isEduMode && self.cohortModel.flaggedVariants && self.cohortModel.flaggedVariants.length > 0 && !self.isLeftDrawerOpen) {
         if (self.$refs.navRef) {
@@ -2015,6 +2023,11 @@ export default {
         self.$nextTick(function() {
           self.$refs.navRef.activeTab = 1;
         })
+      }
+      if(option === "send-to-clin"){
+        setTimeout(()=>{
+          self.sendAnalysisToClin();
+        }, 2500)
       }
     },
 
@@ -2584,7 +2597,6 @@ export default {
     },
     onApplyGenes: function(genesString, options, callback) {
       let self = this;
-
       if (options == null) {
         options = {isFromClin: false};
       } else if (!options.hasOwnProperty("isFromClin")) {
@@ -2658,7 +2670,6 @@ export default {
           self.setUrlGeneParameters();
         }
         let geneNameToSelect = null;
-
         if (self.launchedFromClin) {
           if (self.geneModel.geneNames && self.geneModel.geneNames.length > 0) {
             let applicableGenes = self.geneModel.geneNames.filter(function(geneName) {
@@ -2670,6 +2681,9 @@ export default {
             })
             if (applicableGenes.length > 0) {
               geneNameToSelect = applicableGenes[0];
+            }
+            else{
+              geneNameToSelect = self.geneModel.sortedGeneNames[0];
             }
           }
 
@@ -2721,6 +2735,11 @@ export default {
       }
 
       self.showIntro = self.forMyGene2 || process.env.SHOW_INTRO;
+      if (process.env.SHOW_FILES_BUTTON && process.env.SHOW_FILES_BUTTON == 'false') {
+        self.showFilesButton =  false;
+      } else if (self.forMyGene2) {
+        self.showFilesButton = false;
+      }
 
       if (self.paramSampleId && self.paramSampleId.length > 0) {
         self.sampleId = self.paramSampleId;
@@ -2797,6 +2816,12 @@ export default {
           if (!self.launchedFromHub) {
             self.onGeneSelected(self.paramGeneName);
           }
+        }
+
+        let isTrio = self.paramRelationships.every(sample => sample);
+        if (isTrio) {
+          self.isMother = true;
+          self.isFather = true;
         }
 
 
@@ -2932,6 +2957,10 @@ export default {
         variant.interpretation = 'unknown-sig';
         self.onApplyVariantInterpretation(variant);
       }
+      
+      if (self.launchedFromClin) {
+        self.promiseUpdateAnalysisVariant(variant, {delay: false});
+      }
 
     },
 
@@ -3022,7 +3051,7 @@ export default {
 
       // Only select the gene if it hasn't previously been selected or the transcript is different
       let genePromise;
-      if (!options.force && self.selectedGene.gene_name === flaggedVariant.gene.gene_name) {
+      if (!options.force && self.selectedGene && self.selectedGene.gene_name === flaggedVariant.gene.gene_name) {
         genePromise = Promise.resolve();
       } else if (flaggedVariant.transcript == null
         && self.selectedTranscript
@@ -3183,9 +3212,9 @@ export default {
         if (self.selectedGene && self.selectedGene.gene_name) {
           self.onGeneSelected(self.selectedGene.gene_name);
         }
-        if(stashedVariant) {
-          self.onCohortVariantClick(stashedVariant, null, 'proband');
-        }
+        // if(stashedVariant) {
+        //   self.onCohortVariantClick(stashedVariant, null, 'proband');
+        // }
 
         if (self.launchedFromClin) {
           self.onSendFiltersToClin();
@@ -3216,18 +3245,12 @@ export default {
     onCoverageThresholdApplied: function() {
       let self = this;
 
-      if(self.paramVariantSetId){
-        self.refreshCoverageCounts();
-        if (self.selectedGene && self.selectedGene.gene_name) {
-          self.onGeneSelected(self.selectedGene.gene_name);
-        }
-        if (self.launchedFromClin) {
-          self.onSendFiltersToClin();
-        }
+      self.refreshCoverageCounts();
+      if (self.selectedGene && self.selectedGene.gene_name) {
+        self.onGeneSelected(self.selectedGene.gene_name);
       }
-      else {
-        let stashedVariant = self.selectedVariant
-        self.onFilterSettingsApplied(stashedVariant);
+      if (self.launchedFromClin) {
+        self.onSendFiltersToClin();
       }
     },
     onLeftDrawer: function(isOpen) {
@@ -3318,6 +3341,10 @@ export default {
       let self = this;
       this.isBasicMode = false;
       this.isSimpleMode = false;
+      this.closeIntro = false;
+      setTimeout(function() {
+          self.closeIntro = true;
+      }, 2000);
       this.featureMatrixModel.isBasicMode = false;
       this.featureMatrixModel.isSimpleMode = false;
       this.filterModel.isBasicMode = false;
@@ -3327,6 +3354,7 @@ export default {
         if (self.forMyGene2) {
           options.query.mygene2 = true;
         }
+       
         self.$router.push(options)
       });
     },
@@ -3359,6 +3387,10 @@ export default {
       this.isMother = bool;
       this.isFather = bool;
       this.launchedFromDemo = bool;
+    },
+    onIsTrio: function(bool){
+      this.isMother = bool;
+      this.isFather = bool;
     },
     onShowSnackbar: function(snackbar) {
       if (snackbar && snackbar.message) {
@@ -3930,7 +3962,7 @@ export default {
 
     promiseSelectFirstFlaggedVariant: function() {
       let self = this;
-      if (self.selectedVariant && !self.launchedFromClin) {
+      if (self.selectedVariant) {
         self.onCohortVariantClick(self.selectedVariant, null, 'proband');
         return Promise.resolve();
       }
@@ -3956,12 +3988,11 @@ export default {
             }
           })
         })
-        console.log("self.geneClicked", self.geneClicked);
         if ((self.paramAnalysisId || self.paramVariantSetId || !self.geneClicked) && firstFlaggedVariant &&  (!self.selectedGene || getGeneName(firstFlaggedVariant) !== self.selectedGene.gene_name)) {
           self.promiseLoadGene(getGeneName(firstFlaggedVariant))
             .then(function() {
               self.toClickVariant = firstFlaggedVariant;
-              self.showLeftPanelWhenFlaggedVariants();
+              self.showLeftPanelWhenFlaggedVariants("send-to-clin");
               self.onFlaggedVariantSelected(firstFlaggedVariant, {}, function() {
               resolve()
               self.cacheHelper.analyzeAllInProgress = false;
@@ -4018,7 +4049,6 @@ export default {
               })
 
 
-
               if (self.$refs.navRef && self.$refs.navRef.$refs.genesPanelRef) {
                 self.$refs.navRef.$refs.genesPanelRef.updateGeneSummaries();
               }
@@ -4046,7 +4076,6 @@ export default {
         } else {
           resolve();
         }
-
       })
     },
 

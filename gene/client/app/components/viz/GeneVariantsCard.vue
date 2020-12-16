@@ -139,28 +139,28 @@
 
     <div style="display:flex;justify-content:flex-start;margin-top:5px">
         <gene-omim-table  style="margin-right:30px"
-         v-if="!isCommercial && selectedGene && cohortModel"
-         :selectedGene="selectedGene" 
+         v-if="isOMIMPermitted && selectedGene && cohortModel && !isSimpleMode && !isBasicMode"
+         :selectedGene="selectedGene"
          :geneModel="cohortModel.geneModel">
         </gene-omim-table>
 
         <div>
-          <div style="display:flex;height:25px" v-if="selectedGene && cohortModel && Object.keys(selectedGene).length > 0">
+          <div style="display:flex;height:25px" v-if="selectedGene && cohortModel && Object.keys(selectedGene).length > 0 && !isSimpleMode && !isBasicMode">
             <div class="pubmed-table-title">PubMed</div>
-            <gene-pubmed-popup  
+            <gene-pubmed-popup
             :geneModel="cohortModel.geneModel"
             :selectedGene="selectedGene"
             showAll="true">
             </gene-pubmed-popup>
           </div>
-          <gene-pubmed-table 
-           v-if="selectedGene && cohortModel"
-           :selectedGene="selectedGene" 
+          <gene-pubmed-table
+           v-if="selectedGene && cohortModel && !isSimpleMode && !isBasicMode"
+           :selectedGene="selectedGene"
            :geneModel="cohortModel.geneModel"
            :showSource="true"
            :showAll="false">
           </gene-pubmed-table>
-          
+
         </div>
 
     </div>
@@ -194,7 +194,7 @@
             isBasicMode: null,
             isSimpleMode: null,
             isFullAnalysis: null,
-            isCommercial: null,
+            isOMIMPermitted: null,
             isLoaded: null,
             launchedFromClin: null,
             launchedFromHub: null
