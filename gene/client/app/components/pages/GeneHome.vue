@@ -244,6 +244,7 @@ main.content.clin, main.v-content.clin
       :selectedGene="selectedGene"
       :selectedVariant="selectedVariant"
       :cohortModel="cohortModel"
+      :genomeBuildHelper="genomeBuildHelper"
       :cacheHelper="cacheHelper"
       :geneModel="geneModel"
       :analysis="analysis"
@@ -299,6 +300,7 @@ main.content.clin, main.v-content.clin
       @toggle-save-modal="toggleSaveModal(true)"
       @on-welcome-changed="onWelcomeChanged"
       @show-files="onShowFiles"
+      @stop-analysis="onStopAnalysis"
     >
     </navigation>
 
@@ -793,6 +795,7 @@ import Glyph from '../../partials/Glyph.js'
 import VariantTooltip from '../../partials/VariantTooltip.js'
 
 import allGenesData from '../../../data/genes.json'
+import genePanels from '../../../data/gene_panels.json'
 import acmgBlacklist from '../../../data/ACMG_blacklist.json'
 import SplitPane from '../partials/SplitPane.vue'
 import ScrollButton from '../partials/ScrollButton.vue'
@@ -936,6 +939,7 @@ export default {
 
 
       allGenes: allGenesData,
+      genePanels: genePanels,
       acmgBlacklist: acmgBlacklist,
       blacklistedGeneSelected: false,
 
@@ -1110,26 +1114,8 @@ export default {
     }
 
 
-    // We are seeing problems with Blobs using the Safari browser.
-    // Warn user that Gene.iobio is supported on Chrome and Firefox
-    // browsers
-    if (self.utility.detectSafari()) {
 
-      alertify.confirm("Unsupported Browser",
-        "Gene.iobio is supported on Chrome and Firefox.  Please run on one of these browsers.",
-        function (e) {
-          // ok
-
-        },
-        function() {
-          // cancel
-          self.init()
-        }
-
-      ).set('labels', {ok:'OK', cancel:'Cancel'})
-    } else {
-      self.init();
-    }
+    self.init();
 
 
 
@@ -1247,7 +1233,8 @@ export default {
         let translator = new Translator(self.globalApp, glyph);
         let genericAnnotation = new GenericAnnotation(glyph);
 
-        self.geneModel = new GeneModel(self.globalApp, self.forceLocalStorage, self.launchedFromHub);
+        self.geneModel = new GeneModel(self.globalApp, self.forceLocalStorage, 
+          self.launchedFromHub, self.genePanels);
         self.geneModel.geneSource = self.forMyGene2 ? "refseq" : "gencode";
         self.geneModel.genomeBuildHelper = self.genomeBuildHelper;
         self.geneModel.setAllKnownGenes(self.allGenes);
@@ -2123,7 +2110,7 @@ export default {
             self.promiseLoadData()
             .then(function() {
               self.clearZoom = false;
-              if(transcriptChanged) {
+              if(transcriptChanged && self.stashedVariant && Object.keys(self.stashedVariant).length > 0) {
                 let variant = self.getCorrespondingVariant(self.stashedVariant, self.cohortModel.sampleMap.proband.model.loadedVariants.features);
                 self.onCohortVariantClick(variant, self.$refs.variantCardProbandRef, 'proband');
               }
@@ -2158,7 +2145,7 @@ export default {
     },
     onTranscriptSelected: function(transcript) {
       const self = this;
-      self.stashedVariant = this.selectedVariant;
+      self.stashedVariant = $.extend({}, this.selectedVariant);
       self.selectedTranscript = transcript;
       self.geneModel.setLatestGeneTranscript(self.selectedGene.gene_name, self.selectedTranscript);
       self.onGeneSelected(self.selectedGene.gene_name, true);
@@ -2167,6 +2154,19 @@ export default {
       var self = this;
       self.geneModel.geneSource = theGeneSource;
       this.onGeneSelected(this.selectedGene.gene_name);
+    
+      // We have to clear the cache since the gene transcripts have changed
+      self.geneModel.geneToLatestTranscript = {};
+      self.promiseClearCache()
+      self.showLeftPanelForGenes()
+
+      self.onShowSnackbar({message: 'Genes must be re-analyzed based on ' 
+        + self.geneSource + ' transcripts', timeout: 6000});
+
+      setTimeout(function() {
+        self.onAnalyzeAll()
+      },4000)
+
     },
 
     onNoDataWarning: function(){

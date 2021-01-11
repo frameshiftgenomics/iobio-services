@@ -1467,6 +1467,11 @@ export default {
 
     showMultiAlignments: function() {
       let self = this;
+      if (this.selectedGene.strand == "-") {
+        self.selectedVariant.refAlt = self.globalApp.utility.getReverseStrandComplement(this.selectedVariant.ref, this.selectedVariant.alt)
+      } else {
+        self.selectedVariant.refAlt = {ref: self.selectedVariant.ref, alt: self.selectedVariant.alt}
+      }
       self.showConservation = false;
       self.hasConservationScores = false;
       self.hasConservationAligns = false;
@@ -1502,7 +1507,8 @@ export default {
       let p2 = self.multiAlignModel.promiseGetMultiAlignments(self.selectedGene,
                                                   self.selectedVariant,
                                                   self.genomeBuildHelper.getBuildAlias(self.genomeBuildHelper.ALIAS_UCSC),
-                                                  self.conservationSeqType)
+                                                  self.conservationSeqType,
+                                                  self.selectedGene.strand)
       .then(function(data) {
         if (data) {
           self.multialignSelectedBase = data.selectedBase;
@@ -1604,6 +1610,13 @@ export default {
             refAlt = self.globalApp.utility.switchGenotype(self.selectedVariant.eduGenotype)
           } else {
             refAlt = self.selectedVariant.eduGenotype;
+          }
+        } else if (self.isSimpleMode) {
+          if (self.selectedGene.strand == "-") {
+            let refAltCompl = self.globalApp.utility.getReverseStrandComplement(self.selectedVariant.ref, self.selectedVariant.alt)
+            refAlt =   refAltCompl.ref + "->" + refAltCompl.alt;
+          } else {
+            refAlt =   self.selectedVariant.ref + "->" + self.selectedVariant.alt;
           }
         } else {
           refAlt =   self.selectedVariant.ref + "->" + self.selectedVariant.alt;
@@ -1793,7 +1806,15 @@ export default {
               gnomAD.link += "?dataset=gnomad_r3"
             };
 
-            let af = this.selectedVariant.vepAf.gnomAD.AF == "." ? 0 : this.selectedVariant.vepAf.gnomAD.AF;
+            let af = 0;
+            // If the vepAF.gnomAD is filled in use that; otherwise, default the the vepAF MAX af
+            if (this.selectedVariant.vepAf.gnomAD.AF == "." 
+              && this.selectedVariant.vepAf.MAX.present ) {
+              af = this.selectedVariant.vepAf.MAX.AF == "."  ? 0 : this.selectedVariant.vepAf.MAX.AF 
+            } else {
+              af = this.selectedVariant.vepAf.gnomAD.AF == "." ? 0 : this.selectedVariant.vepAf.gnomAD.AF;
+            }
+             
 
             gnomAD.percent       = this.globalApp.utility.percentage(af);
             gnomAD.class         = this.getAfClass(af);
@@ -1858,14 +1879,14 @@ export default {
 
   watch: {
 
-      selectedPhenotype: function(){
-          this.initGenePhenotypeHits();
-      },
+    selectedPhenotype: function(){
+        this.initGenePhenotypeHits();
+    },
 
     selectedVariant: function() {
       let self = this;
       this.$nextTick(function() {
-          this.loadData();
+          self.loadData();
           if (self.selectedVariantRelationship === "known-variants") {
               self.annotateClinVarVariant(self.selectedVariant);
           }
