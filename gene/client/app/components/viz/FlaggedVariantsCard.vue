@@ -70,14 +70,13 @@
   padding-bottom: 20px
   background-color: white
 
-  #add-filter-button
+  #add-filter-button, #export-variants-button, #import-variants-button
     margin: 0px 0px 0px 0px
     padding: 0px
     min-width: 25px
     max-height: 25px
     padding-right: 5px
     padding-left: 5px
-
     .btn__content, .v-btn__content
       padding-left: 0px
       padding-right: 0px
@@ -85,11 +84,11 @@
       font-size: 13px
       font-weight: 500
 
-      i.material-icons
-        font-size: 20px
-        color: $link-color
-        vertical-align: top
+      svg
+        fill: $link-color
         padding-right: 3px
+  #add-filter-button
+    margin-left: 5px
 
   &.v-card
     box-shadow: none !important
@@ -249,11 +248,13 @@
       padding: 0px 0px 0px 0px
       min-width: 25px
       max-width: 25px
-      margin-left: 40px
+      margin-left: 35px
+      vertical-align: top;
+      margin-top: -5px;
 
-      i.material-icons
-        font-size: 20px
-        color: $app-button-color
+      svg
+        fill: $link-color
+
 
     .remove-filter-button
       margin-left: 0px
@@ -289,7 +290,9 @@
 
       .edit-filter-button
         i.material-icons
-          color: $light-badge-color !important
+          color: $default-badge-color !important
+        svg
+          fill: $default-badge-color 
 
       .v-expansion-panel__header__icon
         display: none
@@ -511,12 +514,12 @@
   white-space: normal
 
 .source-indicator-badge
-  background-color: #efeeee 
-  border-radius: 90px 
+  background-color: #efeeee
+  border-radius: 90px
   height: 16px
-  color: #717171 
-  margin-left: 1px 
-  text-align: center 
+  color: #717171
+  margin-left: 1px
+  text-align: center
   vertical-align: middle
   width: 16px
   display: inline-block
@@ -531,10 +534,28 @@
 
     <div class="variant-toolbar" >
 
-      <v-btn v-if="!isSimpleMode && !isBasicMode" id="add-filter-button" @click="onNewFilter" flat>
-        <v-icon>add</v-icon>
-        New filter
-      </v-btn>
+      <div style="display:flex">
+        <v-btn v-if="!isSimpleMode && !isBasicMode" id="add-filter-button" @click="onNewFilter" flat>
+          <app-icon icon='new_filter' style="margin-right:3px"  height="17" width="17"></app-icon>
+          Add filter
+        </v-btn>
+
+        <v-spacer></v-spacer>
+        <v-btn  id="import-variants-button" 
+          v-if="!isEduMode && !isBasicMode && !launchedFromClin && !launchedFromHub
+           && !isSimpleMode && cohortModel.isLoaded"
+          @click="onShowImportVariants" flat>
+          <app-icon icon='import'  height="17" width="17"></app-icon>
+          Import
+        </v-btn>
+
+        <v-btn  id="export-variants-button" 
+          v-if="!isEduMode && !isBasicMode && !launchedFromClin && !launchedFromHub && cohortModel.flaggedVariants && cohortModel.flaggedVariants.length > 0"
+          @click="onShowExportVariants" flat>
+          <app-icon icon='export'  height="17" width="17"></app-icon>
+          Export
+        </v-btn>
+      </div>
 
       <span  v-show="isBasicMode && !launchedFromClin && variantCount > 0" id="mygene2-basic-title">
         Clinvar Pathogenic/Likely Pathogenic Variants &lt; 1% frequency
@@ -572,7 +593,7 @@
             </v-badge>
 
             <v-btn v-if="!isSimpleMode && geneList.label != 'Reviewed' && geneList.label !== 'Filtered variants'" flat @click="onEditFilter(geneList)" class="edit-filter-button">
-              <v-icon>create</v-icon>
+              <app-icon icon="edit_filter" width="20" height="20"></app-icon>
             </v-btn>
 
             <v-dialog width="500" v-model="showPopup" lazy>
@@ -603,10 +624,10 @@
           <template v-for="variant in flaggedGene.variants">
 
             <v-list-tile
-            :key="variant.start + ' ' + variant.ref + ' ' + variant.alt"
-            ripple
-            :class="{'list-item': true, selected: clickedVariant == variant ? true : false}"
-            @click="onVariantSelected(variant)">
+                :class="{'list-item': true, selected: isSelected(variant)}"
+                :key="variant.start + ' ' + variant.ref + ' ' + variant.alt"
+                @click="onVariantSelected(variant)"
+                ripple>
 
               <v-list-tile-avatar >
                <v-chip class="variant-number" >
@@ -658,8 +679,8 @@
 
                           <app-icon
                           style="width: 15px;height: 15px;display: inline-block;margin-top: 2px;"
-                           :icon="variant.inheritance"
-                           v-if="!isBasicMode && variant.inheritance && variant.inhertance != '' && variant.inheritance.indexOf('n/a') == -1"
+                           :icon="variant.inheritanceGlyph ? variant.inheritanceGlyph : variant.inheritance"
+                           v-if="!isBasicMode && variant.inheritance && variant.inheritance != '' && variant.inheritance.indexOf('n/a') == -1"
                            class="inheritance-badge" height="15" width="15">
                           </app-icon>
 
@@ -760,7 +781,7 @@
       </v-list>
     </v-expansion-panel-content>
   </v-expansion-panel>
-  
+
 
   </v-card>
 
@@ -783,6 +804,19 @@
         </filter-settings>
       </v-card>
   </v-dialog>
+
+  <import-variants
+   :cohortModel="cohortModel"
+   @close-import-variants="onCloseImportVariants"
+   :showDialog="showImportVariants">
+  </import-variants>
+
+  <export-variants
+   :cohortModel="cohortModel"
+   @close-export-variants="onCloseExportVariants"
+   :showDialog="showExportVariants">
+  </export-variants>
+
 </div>
 </template>
 
@@ -795,6 +829,9 @@ import FilterIcon                 from '../partials/FilterIcon.vue'
 import VariantInterpretationBadge from '../partials/VariantInterpretationBadge.vue'
 import FilterSettings             from '../partials/FilterSettings.vue'
 import FilterSettingsCoverage     from '../partials/FilterSettingsCoverage.vue'
+import ExportVariants             from '../partials/ExportVariants.vue'
+import ImportVariants             from '../partials/ImportVariants.vue'
+
 
 export default {
   name: 'flagged-variants-card',
@@ -803,7 +840,9 @@ export default {
     FilterIcon,
     VariantInterpretationBadge,
     FilterSettings,
-    FilterSettingsCoverage
+    FilterSettingsCoverage,
+    ExportVariants,
+    ImportVariants,
   },
   props: {
     isEduMode: null,
@@ -813,12 +852,14 @@ export default {
     activeFilterName: null,
     cohortModel: null,
     launchedFromClin: null,
+    launchedFromHub: null,
     isFullAnalysis: null,
     geneNames: null,
     genesInProgress: null,
     interpretationMap: null,
     toClickVariant: null,
-    variantSetCounts: null
+    variantSetCounts: null,
+    selectedVariant: null,
   },
 
   data() {
@@ -836,12 +877,23 @@ export default {
       selectedGeneList: null,
       variantExpansionControl: [true],
       selectedGeneSources: {},
+      showExportVariants: false,
+      showImportVariants: false
     }
   },
   methods: {
 
     onClose(){
       this.showPopup = false;
+    },
+
+    isSelected: function(v){
+      let stashedVariant = this.selectedVariant;
+      return ( v && stashedVariant
+          && v.start === stashedVariant.start
+          && v.end === stashedVariant.end
+          && v.ref === stashedVariant.ref
+          && v.alt === stashedVariant.alt);
     },
 
     setGenesList(genesList){
@@ -868,6 +920,19 @@ export default {
       this.clickedVariant = variant;
       this.$emit("flagged-variant-selected", variant);
     },
+    onShowExportVariants: function() {
+      this.showExportVariants = true;
+    },
+    onCloseExportVariants: function() {
+      this.showExportVariants = false;
+    },
+    onShowImportVariants: function() {
+      this.showImportVariants = true;
+    },
+    onCloseImportVariants: function() {
+      this.showImportVariants = false;
+    },
+
     deselectVariant: function() {
       this.clickedVariant = null;
     },
@@ -1250,7 +1315,7 @@ export default {
         return label;
       }
     },
-    
+
     getSourceIndicatorBadge: function(gene_name) {
       if(this.launchedFromClin){
         this.selectedGeneSources.source = this.cohortModel.geneModel.getSourceForGenes()[gene_name].source;
@@ -1279,6 +1344,9 @@ export default {
   watch: {
     geneNames: function(newGeneNames, oldGeneNames) {
       this.populateGeneLists();
+    },
+    selectedVariant: function(){
+      this.clickedVariant = this.selectedVariant;
     },
     isFullAnalysis: function() {
       this.populateGeneLists();
