@@ -33,19 +33,52 @@ textarea#copy-paste-genes
     margin: 0px
     color: $text-color
     font-size: 16px
+    
+    .button-label
+      display: inline-block
+      vertical-align: bottom
 
-#acmg-genes-button, #aclear-all-genes-button,  #apply-button
+    .v-badge__badge
+      background-color: $nav-badge-color !important;
+      left: 80px
+      height: 14px
+      width: 65px
+      top: -11px
+      border-radius: 4px
+
+      span
+        font-size: 12px !important
+        color: white !important
+        font-weight: 500 !important
+        font-style: italic !important
+
+
+#acmg-genes-button, #cancel-button,  #apply-button
   height: 30px !important
+
+#apply-button
+  background-color: $app-button-color !important
+  color: white !important
 
 #enter-genes-input, #phenotype-input
   label
     font-weight: normal
+
+#acmg-genes-button
+  margin-bottom: -10px
+  .v-btn__content
+    color:  $app-button-color 
+    .material-icons
+      font-size: 18px
+      padding-right: 2px
+      color:  $app-button-color 
 
 </style>
 
 <template>
     <v-menu
     offset-y
+    :close-on-click="false"
     :close-on-content-click="false"
     :nudge-width="isEduMode ? 450 : 400"
     bottom
@@ -61,18 +94,21 @@ textarea#copy-paste-genes
        slot="activator"
        @mouseover="onMouseOver()"
        @mouseleave="onMouseLeave()"
-       v-tooltip.top-center="{content: tooltipContent, show: showTooltipFlag, trigger: 'manual'}"
+       v-tooltip.bottom-left="{content: tooltipContent, show: showTooltipFlag, trigger: 'manual'}"
       >
-        <v-icon v-if="buttonIcon">
-          {{ buttonIcon }}
-        </v-icon>
-        <span v-if="!buttonIcon">
-          Genes
-        </span>
+        
+        <v-badge right  >
+          <span class="button-label">
+            Gene list
+          </span>
+          <span v-if="selectedGenePanelName"
+            slot="badge">{{ selectedGenePanelShortName }}</span>
+        </v-badge>
       </v-btn>
 
 
         <div  v-if="isEduMode" class="full-width" style="padding:20px">
+          
           <div id="phenolyzer-panel" slot="header">Search by Phenotype</div>
           <div style="margin-bottom:15px;margin-left:16px;">
               <phenotype-search
@@ -87,28 +123,41 @@ textarea#copy-paste-genes
           </div>
         </div>
 
-      <div class="full-width" style="padding: 20px">
+      <div class="full-width" style="padding: 10px 20px 10px 20px">
+
+
+        <div v-if="!isEduMode" style="justify-content:flex-end;display:flex">
+
+          <v-select
+            :items="genePanelNames"
+            :clearable="true"
+            v-model="selectedGenePanelName"
+            @change="onGenePanelSelected"
+            label="Gene panels">
+          </v-select>
+  
+        </div>
 
           <div id="enter-genes-input">
             <v-textarea
               id="copy-paste-genes"
               multi-line
               rows="12"
-              label="Enter gene names"
+              label="Enter or copy/paste gene names"
               v-model="genesToApply"
             >
             </v-textarea>
           </div>
-          <div v-if="!isEduMode">
-              <v-btn id="aclear-all-genes-button" @click="onClearAllGenes">
-              Clear all
-              </v-btn>
-              <v-btn id="acmg-genes-button" @click="onACMGGenes">
-              ACMG Genes
-              </v-btn>
-              <v-btn id="apply-button" style="float:right" @click="onApplyGenes">
-               Apply
-             </v-btn>
+          <div v-if="!isEduMode" style="display:flex;justify-content:flex-end">
+
+                <v-btn id="apply-button"  @click="onApplyGenes">
+                 Apply
+                </v-btn>
+
+                <v-btn id="cancel-button"  @click="onCancel">
+                 Cancel
+                </v-btn>
+
           </div>
 
 
@@ -119,6 +168,7 @@ textarea#copy-paste-genes
 <script>
 
 import PhenotypeSearch from '../partials/PhenotypeSearch.vue'
+import AppIcon from '../partials/AppIcon.vue'
 
 
 
@@ -127,6 +177,7 @@ export default {
   name: 'genes-menu',
   components: {
     PhenotypeSearch,
+    AppIcon,
   },
   props: {
     geneModel: null,
@@ -143,7 +194,10 @@ export default {
       genesToApply: null,
 
       showTooltipFlag: false,
-      tooltipContent: null
+      tooltipContent: null,
+
+      selectedGenePanelName: null
+
 
     }
   },
@@ -158,8 +212,18 @@ export default {
       self.$emit("apply-genes", self.genesToApply, options );
       self.showGenesMenu = false;
     },
+    onCancel: function() {
+      let self = this;
+      self.showGenesMenu = false;
+    },
     onACMGGenes: function() {
-      this.genesToApply = this.geneModel.ACMG_GENES.join(", ");
+      this.genesToApply = this.geneModel.getGenePanelGenes("ACMG 59").join(", ")
+    },
+    onGenePanelSelected: function() {
+      let genes = this.geneModel.getGenePanelGenes(this.selectedGenePanelName);
+      if (genes && genes.length > 0) {
+        this.genesToApply = genes.join(", ");
+      }
     },
     onSearchPhenolyzerGenes: function(searchTerm) {
       let self = this;
@@ -184,7 +248,6 @@ export default {
     },
     onClearAllGenes: function() {
       this.$emit("clear-all-genes");
-      this.showGenesMenu = false;
     },
     onMouseOver: function() {
       this.showTooltipFlag = true;
@@ -209,11 +272,24 @@ export default {
   },
   updated: function() {
   },
+  computed: {
+    genePanelNames: function() {
+      return this.geneModel.getGenePanelNames();
+    },
+    selectedGenePanelShortName: function() {
+      if (this.selectedGenePanelName) {
+        return this.geneModel.getGenePanelShortName(this.selectedGenePanelName)
+      } else {
+        return ""
+      }
+    }
+  },
   watch: {
     showGenesMenu: function() {
       let self = this;
       if (self.showGenesMenu) {
         this.genesToApply = self.geneModel.geneNames.join(", ");
+        this.hideTooltip()
       }
     }
   }

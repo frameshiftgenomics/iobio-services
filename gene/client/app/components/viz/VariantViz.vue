@@ -70,7 +70,9 @@
 
 <template>
     <div class="variant-viz">
-
+      <div v-if="data && data.count<1 && vizRef==='loadedVariants'">
+        <v-badge class="info" style="margin: 20px;">No variants are present in {{ model.relationship }}</v-badge>
+      </div>
     </div>
 </template>
 
@@ -151,6 +153,7 @@ export default {
       showFilter: false,
       selectedVariant: null,
       selectedVariantRelationship: null,
+      vizRef: null
     },
     data() {
       return {
@@ -324,9 +327,6 @@ export default {
         }
         else{
           this.variants = this.data;
-        }
-        if(this.model.relationship === this.selectedVariantRelationship) {
-          this.onVariantClick(this.selectedVariant);
         }
       },
 

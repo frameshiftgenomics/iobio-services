@@ -26,7 +26,7 @@ data "aws_ami" "iobio" {
 
 resource "aws_instance" "iobio" {
   ami                    = data.aws_ami.iobio.id
-  instance_type          = "m5.2xlarge"
+  instance_type          = "m5.4xlarge"
   vpc_security_group_ids = [aws_security_group.allow_http.id]
 
   tags = {
@@ -64,4 +64,8 @@ resource "aws_security_group" "allow_http" {
 
 resource "aws_eip" "eip" {
   instance = aws_instance.iobio.id
+
+  tags = {
+    Name = "iobio-prod"
+  }
 }

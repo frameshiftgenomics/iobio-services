@@ -7,6 +7,12 @@ class Util {
       LOW:       'Benign'
     }
     this.globalApp = null;
+    this.baseMap = {
+      'A': 'T',
+      'G': 'C',
+      'C': 'G',
+      'T': 'A'
+    }
     this.aminoAcidMap= {A: 'Ala',
                         R: 'Arg',
                         N: 'Asn',
@@ -45,6 +51,19 @@ class Util {
       return decodeURIComponent(url)
     else
       return url;
+  }
+
+  getReverseStrandComplement(ref, alt) {
+    let self = this;
+    let newRef = ""
+    let newAlt = ""
+    for (var i = 0; i < ref.length; i++) {
+      newRef += self.baseMap[ref[i]];
+    }
+    for (var i = 0; i < alt.length; i++) {
+      newAlt += self.baseMap[alt[i]];
+    }
+    return {ref: newRef, alt: newAlt}
   }
 
   formatExonTooltip(filterModel, relationship, coverageRow, feature,  lock) {
@@ -713,7 +732,7 @@ class Util {
     return coord;
   }
 
-  formatDisplay(variant, translator, isEduMode) {
+  formatDisplay(variant, translator, isEduMode, format) {
     var me = this;
     var info = {
       coord: "",
@@ -914,9 +933,14 @@ class Util {
     if (variant.notes && variant.notes.length > 0) {
       variant.notes.forEach(function(note) {
         if (info.notesFlattened.length > 0) {
-          info.notesFlattened += " | ";
+          format == 'vcf' ? info.notesFlattened += "|" : info.notesFlattened += " | ";
         }
-        info.notesFlattened  +=  (note.author ? note.author : " ") + "\t"+ note.datetime + "\t" + note.note.split("\n").join(";  ") ;
+        if(format == 'vcf') {
+          info.notesFlattened  +=  (note.author ? note.author.trim().replace(" ", "<>") : "") + "\t"+ note.datetime + "\t" + note.note.split("\n").join(";  ") ;
+        }
+        else{
+          info.notesFlattened  +=  (note.author ? note.author : " ") + "\t"+ note.datetime + "\t" + note.note.split("\n").join(";  ") ;
+        }
       })
     }
 
