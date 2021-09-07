@@ -1,5 +1,3 @@
-# Enable BuildKit, a next generation container image builder:
-# https://docs.docker.com/develop/develop-images/build_enhancements/#to-enable-buildkit-builds
 export DOCKER_BUILDKIT=1
 
 GIT_TAG ?= $(shell git rev-parse --short HEAD)
@@ -41,6 +39,12 @@ deploy-iobio-stack:
 
 check-services:
 	docker service ls
+
+destroy-traefik-stack:
+	docker stack rm traefik
+
+destroy-iobio-stack:
+	docker stack rm iobio
 
 prune-images:
 	docker image prune -af

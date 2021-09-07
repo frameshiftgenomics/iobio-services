@@ -1,6 +1,6 @@
 # iobio-services
 
-A distributed Iobio application running across multiple Docker containers.
+Distributed Iobio.io applications running across multiple Docker containers.
 
 [http://iobio.io/](http://iobio.io/)
 

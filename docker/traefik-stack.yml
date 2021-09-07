@@ -11,7 +11,7 @@ version: "3.8"
 
 services:
   traefik:
-    image: traefik:v2.1
+    image: traefik:v2.5.2
     networks:
       - proxy
     command:
@@ -75,8 +75,8 @@ networks:
 
 # Prerequisites - Must complete before launching stack
 
-# 1. Replace email in config above to a valid email
-# 2. Replace example domains
+# 1. Replace email in config above (info@frameshift.io) to a valid email
+# 2. Replace example domain (traefik.frameshift.io)
 # 3. Create & encrypt traefik dashboard password
 
 # Note: all dollar signs in the hash need to be doubled for escaping.
@@ -89,8 +89,9 @@ networks:
 # $ chmod 600 letsencrypt/acme.json
 
 # 5. Launch stack
-# $ docker stack deploy -c docker/traefik-stack.yml traefik
+# $ make deploy-traefik-stack
 
 # 6. Verify dashboard & TLS
 # The certificate should be issued by: CN=Fake LE Intermediate X1
 # Once everything is working, change to the Let's Encrypt production server: https://acme-v02.api.letsencrypt.org/directory
+# Make sure to repeat step 4 above anytime the Let's Encrypt server is changed

@@ -4,8 +4,9 @@
 # - gru.iobio api
 #
 # Prerequisites - Must complete before launching stack
+#
 # 1. Launch the traefik stack
-# 2. Replace example frameshift domains
+# 2. Replace all instances of example frameshift domains (iobio.frameshift.io)
 
 version: "3.8"
 
