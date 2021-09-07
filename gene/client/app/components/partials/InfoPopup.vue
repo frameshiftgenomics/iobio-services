@@ -65,7 +65,7 @@
 .toggle-info-button
   margin-bottom: 0 !important
   margin-top: 0 !important
-  margin-right: 30px !important
+  margin-right: 0px !important
   margin-left: 0 !important
   padding-top: 0 !important
   padding-left: 5px !important
@@ -144,14 +144,14 @@ export default {
             },
             'filterAf': {
                 title: 'Filtering variants by allele frequency',
-                description: 'Use the <strong><em>max population allele frequency</em></strong> from gnomAD to filter variants. This is  the highest allele frequency observed in any population and is a more restrictive filter than the overall allele frequency. <br><br>When available, the max population frequency will be determined from <strong><em>gnomAD genomes</em></strong>. Otherwise, the max population frequency will be determined from gnomAD exomes.',
+                description: 'For GRCh37, filter variants using the gnomAD 2.1.1 genomes max population allele frequency (the maximum frequency in any subpopulation). For GRCh38, filter variants using gnomAD 3.1.1 genomes max population allele frequency (the maximum frequency in any subpopulation).',
                 publication: 'gnomAD site',
                 publicationUrl: 'https://gnomad.broadinstitute.org/'
 
             },
             'filterAfGenomesOnly': {
                 title: 'Filtering variants by allele frequency',
-                description: 'Use the <strong><em>max population allele frequency</em></strong> from <strong><em>gnomAD genomes</em></strong> to filter variants. This is  the highest allele frequency observed in any population and is a more restrictive filter than the overall allele frequency.',
+                description: 'For GRCh37, filter variants using the gnomAD 2.1.1 genomes max population allele frequency (the maximum frequency in any subpopulation). For GRCh38, filter variants using gnomAD 3.1.1 genomes max population allele frequency (the maximum frequency in any subpopulation). Values must be 0-1.',
                 publication: 'gnomAD site',
                 publicationUrl: 'https://gnomad.broadinstitute.org/'
 
