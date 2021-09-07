@@ -1,22 +1,8 @@
-## This deployment is not yet supported!
-
-The intended deployment for the iobio stack was originally docker swarm.
-
-However, the gru backend container needs to run with the `--privileged` flag (because it runs singularity). Therefore, the production deployment was changed to docker-compose. Docker-compose is intended for local development, and does not have all of the features of docker swarm (e.g. clustering, overlay networks, etc).
-
-If singularity is removed from gru, or the `--privileged` option becomes available to swarm services, then this deployment would become a viable option!
-
-For more info:
-
-- [https://github.com/moby/moby/issues/25303](https://github.com/moby/moby/issues/25303)
-- [https://github.com/docker/swarmkit/pull/1722](https://github.com/docker/swarmkit/pull/1722)
-- [https://github.com/docker/swarmkit/issues/1030](https://github.com/docker/swarmkit/issues/1030)
-
-### Docker Swarm
+### Iobio Services Production Deployment with Docker Swarm
 
 [https://docs.docker.com/engine/swarm/](https://docs.docker.com/engine/swarm/)
 
-The following steps provide instructions to run the entire stack in the cloud.
+The following steps provide instructions to run the entire iobio stack in the cloud.
 
 ### Stack architecture
 
@@ -39,7 +25,6 @@ All iobio applications run behind a reverse proxy called [traefik](https://docs.
 ### Boot up a machine
 
 - Ubuntu is the recommended OS
-- Machine will need a large root device volume ~120GB
 - Once the machine is running, configure DNS records
 
 See the following notes for setting up AWS infrastructure:

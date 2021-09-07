@@ -7,7 +7,7 @@
 #
 # See additional notes at end of file.
 
-version: "3.7"
+version: "3.8"
 
 services:
   traefik:
@@ -84,7 +84,6 @@ networks:
 # $ echo $(htpasswd -nb user password) | sed -e s/\\$/\\$\\$/g
 
 # 4. Create file to hold letsencrypt certs
-
 # $ mkdir letsencrypt
 # $ touch letsencrypt/acme.json
 # $ chmod 600 letsencrypt/acme.json
