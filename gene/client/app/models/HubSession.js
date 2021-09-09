@@ -28,12 +28,14 @@ export default class HubSession {
       'compoundhet': 'compoundHet'
     };
     this.globalApp = null;
+    this.experiment_id = null;
   }
 
-  promiseInit(sampleId, source, isPedigree, projectId, geneSetId, variantSetId ) {
+  promiseInit(sampleId, source, isPedigree, projectId, geneSetId, variantSetId, build, experimentId ) {
     let self = this;
     self.api = source + self.apiVersion;
     self.apiDepricated = source + self.apiVersionDeprecated
+    self.experiment_id = experimentId;
 
     return new Promise((resolve, reject) => {
       let modelInfos = [];
@@ -60,7 +62,7 @@ export default class HubSession {
         geneSet = data;
 
         if (variantSetId) {
-          return self.promiseGetVariantSet(projectId, variantSetId)
+          return self.promiseGetVariantSet(projectId, variantSetId, build)
         } else {
           return Promise.resolve(null);
         }
@@ -491,6 +493,13 @@ export default class HubSession {
       self.promiseGetFilesForSample(project_id, currentSample.id)
       .then(files => {
         files.filter(file => {
+          if(self.experiment_id){
+            return file.experiment_ids.includes(Number(self.experiment_id))
+          }
+          else {
+            return file
+          }
+        }).filter(file => {
           return file.type
         })
         .forEach(file => {
@@ -553,7 +562,7 @@ export default class HubSession {
   getFilesForSample(project_id, sample_id) {
     let self = this;
     return $.ajax({
-      url: self.api +  '/samples/' + sample_id + '/files',
+      url: self.api + '/projects/' + project_id +  '/samples/' + sample_id + '/files',
       type: 'GET',
       contentType: 'application/json',
       headers: {
@@ -656,23 +665,52 @@ export default class HubSession {
   }
 
 
-  promiseGetVariantSet(projectId, variantSetId) {
+  promiseGetVariantSet(projectId, variantSetId, build) {
     let self = this;
     return new Promise(function(resolve, reject) {
-      self.getVariantSet(projectId, variantSetId)
+      self.getVariantSet(projectId, variantSetId, build)
       .done(response => {
-        resolve(response)
+        let data = response;
+
+        // The gene symbol is in a different field depending on the genome build.
+        // Set the 'gene_symbol' field so that we can pull it from one field.
+        let geneSymbolField = null
+        if (build === "GRCh38"){
+          geneSymbolField = 'gene_symbol_GRCh38';
+        }
+        else if (build === "GRCh37"){
+           geneSymbolField = 'gene_symbol_GRCh37';
+        }
+        if (geneSymbolField) {
+          data.variants.forEach(function(variant) {
+            if (!variant.hasOwnProperty('gene_symbol')) {
+              variant['gene_symbol'] = variant[geneSymbolField];
+            }
+          })
+        }
+
+        resolve(data)
       })
       .fail(error => {
-        let errorMsg = error.responseJSON.message;
-        let msg = "Error getting variant set " + variantSetId + " from Mosaic. This project may not be up to date with the latest variant annotations.";
-        alertify.alert("<div class='pb-2 dark-text-important'>"+   msg +  "</div>  <div class='pb-2' font-italic>Please email <a href='mailto:info@frameshift.io'>info@frameshift.io</a> for help resolving this issue.</div><code>" + errorMsg + "</code>").setHeader("Fatal Error");
+        self.getVariantSet(projectId, variantSetId, 'old_project')
+        .done(response => {
+          resolve(response)
+        })
+        .fail(error => {
+          let errorMsg = error.responseJSON.message;
+          let msg = "Error getting variant set " + variantSetId + " from Mosaic. This project may not be up to date with the latest variant annotations.";
+          alertify.alert("<div class='pb-2 dark-text-important'>"+   msg +  "</div>  <div class='pb-2' font-italic>Please email <a href='mailto:info@frameshift.io'>info@frameshift.io</a> for help resolving this issue.</div><code>" + errorMsg + "</code>").setHeader("Fatal Error");
 
-        reject("Error getting variant set " + variantSetId + ": " + error);
+          reject("Error getting variant set " + variantSetId + ": " + error);
+        })
+
+
       })
     })
 
   }
+
+
 
   promiseGetAnalysis(projectId, analysisId) {
     let self = this;
@@ -849,14 +887,23 @@ export default class HubSession {
   }
 
 
-  getVariantSet(projectId, variantSetId) {
+  getVariantSet(projectId, variantSetId, build) {
     let self = this;
-
+    let annotationUids = [];
+    if(build === "GRCh38"){
+      annotationUids.push('gene_symbol_GRCh38');
+    }
+    else if(build === "GRCh37"){
+      annotationUids.push('gene_symbol_GRCh37');
+    }
+    else {
+      annotationUids.push('gene_symbol');
+    }
     return $.ajax({
+      // url: 'https://mosaic.chpc.utah.edu/api/v1/projects/' + projectId + '/variants/sets/' + variantSetId + "?include_variant_data=true&include_genotype_data=true",
       url: self.apiDepricated + '/projects/' + projectId + '/variants?variant_set_id=' + variantSetId,
       data: {
-        include_variant_data: true,
-        annotation_uids: ['gene_symbol'],
+        annotation_uids: annotationUids,
       },
       type: 'GET',
       contentType: 'application/json',

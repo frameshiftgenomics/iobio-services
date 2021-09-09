@@ -1,15 +1,15 @@
-# Compose file for local development
+# Compose file for local development (not yet tested after updates to docker swarm deployment on 9/7/21)
 #
 # - proxy with dynamic routing & dashboard
 # - gene.iobio client app
 # - gru.iobio api
 
-version: "3.7"
+version: "3.8"
 
 services:
 
   traefik:
-    image: traefik:v2.1
+    image: traefik:v2.5.2
     command:
       # - --api.debug=true
       # - --log.level=ERROR
@@ -24,15 +24,14 @@ services:
 
   gru:
     build:
-      dockerfile: Dockerfile
+      dockerfile: ./docker/prod/Dockerfile
       context: ./gru
-    privileged: true
     volumes:
-      - /app/node_modules
-      - /app/tool_bin
-      - /app/static
-      - ./gru:/app
-      - ./sqlite/data:/app/data:ro
+      - /iobio-gru-backend/node_modules
+      - /iobio-gru-backend/tool_bin
+      - /iobio-gru-backend/static
+      - ./gru:/iobio-gru-backend
+      - ./sqlite/data:/iobio-gru-backend/data:ro
     labels:
       - "traefik.http.routers.gru.rule=Host(`gru.localhost`)"
       - "traefik.http.services.gru.loadbalancer.server.port=9001"

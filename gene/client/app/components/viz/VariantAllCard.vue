@@ -68,6 +68,22 @@
   .coverage-problem-glyph
     fill: $coverage-problem-glyph-color
 
+  .coding-variants-only-switch
+    margin-top: -4px
+    max-width: 180px
+    margin-left: 20px
+    margin-right: 20px
+
+    label
+      line-height: 18px !important
+      color: $text-color !important
+      font-weight: normal !important
+      font-size: 13px !important
+      padding-left: 2px !important
+      padding-top: 6px !important
+
+    .v-input--selection-controls__input
+      margin-right: 0px 
 
   .gene-viz, .gene-viz-zoom
     .transcript.current
@@ -116,6 +132,8 @@
     display: inline-block
     padding-top: 0 !important
     margin-top: 0 !important
+    margin-right: 20px
+    margin-left: 20px
 
     label
       padding-left: 0
@@ -336,6 +354,7 @@
       </span>
       <optional-tracks-menu
               v-show="!isEduMode && !isBasicMode && !isSimpleMode"
+              :forceKnownVariantsViz="forceKnownVariantsViz"
               @show-known-variants-card="onShowKnownVariantsCard"
               @show-sfari-variants-card="onShowSfariVariantsCard"
               @show-mother-card="onShowMotherCard"
@@ -348,12 +367,21 @@
               :isMother="isMother"
               :isFather="isFather"
       ></optional-tracks-menu>
-      <div style="width:23px"></div>
+
+
+
+
       <!--When I refactor this to a class, there is some weird styling inheritance, so I'm leaving this as inline styling for now, but will get around to refactoring out all the inline styling-->
       <div v-if="!isSimpleMode && !isBasicMode" style="display: inline-flex; flex-wrap: wrap; justify-content: flex-start;">
+        <v-switch v-if="!isEduMode" class="coding-variants-only-switch"
+              label="Coding regions only"
+              v-model="analyzeCodingVariantsOnly"
+              >
+        </v-switch>
+
         <div style="display: inline-flex;">
           <variant-toggle
-                  v-if="showVariantViz"
+                  v-if="!isEduMode && showVariantViz"
                   :variants="sampleModel.loadedVariants"
                   :filterModel="sampleModel.cohort.filterModel"
                   :geneLists="geneLists"
@@ -362,7 +390,7 @@
                   @filtered-variants-update="onFilteredVariantsUpdate"
                   @show-filter="onShowFilter">
           </variant-toggle>
-          <info-popup name="variant-toggle"></info-popup>
+          <info-popup v-if="!isEduMode && showVariantViz" name="variant-toggle"></info-popup>
         </div>
         <v-switch
                 v-if="sampleModel.relationship === 'proband' && sampleModel.loadedVariants && selectedGene && sampleModel.cohort.geneModel.geneDangerSummaries[selectedGene.gene_name]  && !isEduMode && !isBasicMode && !(sampleModel.isSfariSample && blacklistedGeneSelected)"
@@ -371,7 +399,6 @@
                 v-model="showZoom"
                 :hide-details="true">
         </v-switch>
-        <div class="header-spacer"></div>
         <div>
           <div style="height: 4px"></div>
         <v-badge  id="loaded-count" style="padding-top: 2px; margin-left: 0 !important"
@@ -385,9 +412,9 @@
           <span v-if="sampleModel.loadedVariants"  slot="badge"> {{ sampleModel.calledVariants.features.length }} </span>
           Called
         </v-badge>
-        <v-badge  v-if="!isSimpleMode && !isBasicMode && sampleModel.loadedVariants && coverageDangerRegions.length > 0 && !(sampleModel.isSfariSample && blacklistedGeneSelected)" class="ml-4 mr-4 coverage-problem" >
+        <v-badge  v-if="!isSimpleMode && !isBasicMode && sampleModel.loadedVariants && coverageDangerRegions.length > 0 && !(sampleModel.isSfariSample && blacklistedGeneSelected)" class="ml-2 mr-2 coverage-problem" >
           <span slot="badge"> {{ coverageDangerRegions.length }} </span>
-          Exons with insufficient coverage
+          Exons (CDS) with insufficient coverage
         </v-badge>
         </div>
       </div>
@@ -443,8 +470,16 @@
         </gene-viz>
         <div class="chart-label"
         v-if="showVariantViz && !isSimpleMode && selectedGene && sampleModel.cohort.geneModel.geneDangerSummaries[selectedGene.gene_name] && sampleModel.cohort.geneModel.geneDangerSummaries[selectedGene.gene_name].CALLED && sampleModel.calledVariants && sampleModel.calledVariants.features.length > 0">
-          called variants
+          Called variants
         </div>
+
+        <div
+          v-if="showVariantViz && !isSimpleMode && selectedGene && sampleModel.cohort.geneModel.geneDangerSummaries[selectedGene.gene_name] && sampleModel.cohort.geneModel.geneDangerSummaries[selectedGene.gene_name].CALLED && sampleModel.calledVariants && sampleModel.calledVariants.features.length === 0">
+            <v-badge class="info mb-3">
+              No called variants
+            </v-badge>
+        </div>
+
 
         <variant-viz id="called-variant-viz"
           ref="calledVariantVizRef"
@@ -597,7 +632,12 @@
             @variantHoverEnd="onVariantHoverEnd">
           </variant-viz>
           <div class="loader vcfloader" v-bind:class="{ hide: !model.inProgress.loadingVariants }" style="text-align: center; clear: both;width: 100%;display: inline-block;padding-top:10px; padding-bottom: 5px">
-            <span class="loader-label">Annotating variants</span>
+            <span v-if="model.relationship == 'known-variants'" class="loader-label">
+              Loading ClinVar variants for {{selectedGene.gene_name}} 
+            </span>
+            <span v-if="model.relationship == 'sfari-variants'" class="loader-label">
+              Loading SFARI variants for {{selectedGene.gene_name}} 
+            </span>
             <img src="../../../assets/images/wheel.gif" alt="Loading wheel">
           </div>
           <stacked-bar-chart-viz
@@ -693,6 +733,7 @@ export default {
 
 
     showVariantViz: true,
+    forceKnownVariantsViz: null,
     showGeneViz: true,
     showDepthViz: true,
     geneVizShowXAxis: null,
@@ -702,6 +743,7 @@ export default {
     blacklistedGeneSelected: false,  // True if selected gene falls in SFARI ACMG blacklist
     geneLists: null,
     launchedFromClin: null,
+
 
   },
 
@@ -765,6 +807,7 @@ export default {
       pileupStyle: {},
       showFilter: false,
       showPopup: false,
+      analyzeCodingVariantsOnly: true,
     }
   },
 
@@ -1105,9 +1148,9 @@ export default {
       })
 
     },
-    onKnownVariantsVizChange: function(viz) {
+    onKnownVariantsVizChange: function(viz, selectedCategories) {
       this.knownVariantsViz = viz;
-      this.$emit("known-variants-viz-change", viz);
+      this.$emit("known-variants-viz-change", viz, selectedCategories);
     },
     onKnownVariantsFilterChange: function(selectedCategories) {
       this.$emit("known-variants-filter-change", selectedCategories);
@@ -1130,9 +1173,9 @@ export default {
       let self = this;
       self.$emit("show-father-card", showIt);
     },
-    onShowKnownVariantsCard: function(showIt) {
+    onShowKnownVariantsCard: function(showIt, selectedCategories) {
       let self = this;
-      self.$emit("show-known-variants-card", showIt);
+      self.$emit("show-known-variants-card", showIt, selectedCategories);
     },
     onShowSfariVariantsCard: function(showIt) {
       let self = this;
@@ -1263,7 +1306,7 @@ export default {
       let self = this;
       let label = "";
       if (model.relationship === 'known-variants') {
-        label = "ClinVar"
+        label = "ClinVar variants catalogued in " + self.selectedGene.gene_name
       } else if (model === 'sfari-variants') {
         label = "SFARI"
       } else {
@@ -1339,6 +1382,9 @@ export default {
     clearZoom: function() {
       this.showZoom = false;
       this.zoomMessage = "Drag to zoom";
+    },
+    analyzeCodingVariantsOnly: function() {
+      this.$emit("analyze-coding-variants-only", this.analyzeCodingVariantsOnly)
     },
   },
 

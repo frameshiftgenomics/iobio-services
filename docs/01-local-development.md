@@ -1,5 +1,7 @@
 ## Local Development with Docker
 
+__NOTE: Local development has not yet been tested after updates to docker swarm deployment on 9/7/21__
+
 Download Docker community edition and read the documentation:
 
 [https://www.docker.com/get-started](https://www.docker.com/get-started)

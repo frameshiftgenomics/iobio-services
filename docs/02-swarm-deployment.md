@@ -1,22 +1,8 @@
-## This deployment is not yet supported!
-
-The intended deployment for the iobio stack was originally docker swarm.
-
-However, the gru backend container needs to run with the `--privileged` flag (because it runs singularity). Therefore, the production deployment was changed to docker-compose. Docker-compose is intended for local development, and does not have all of the features of docker swarm (e.g. clustering, overlay networks, etc).
-
-If singularity is removed from gru, or the `--privileged` option becomes available to swarm services, then this deployment would become a viable option!
-
-For more info:
-
-- [https://github.com/moby/moby/issues/25303](https://github.com/moby/moby/issues/25303)
-- [https://github.com/docker/swarmkit/pull/1722](https://github.com/docker/swarmkit/pull/1722)
-- [https://github.com/docker/swarmkit/issues/1030](https://github.com/docker/swarmkit/issues/1030)
-
-### Docker Swarm
+### Iobio Services Production Deployment with Docker Swarm
 
 [https://docs.docker.com/engine/swarm/](https://docs.docker.com/engine/swarm/)
 
-The following steps provide instructions to run the entire stack in the cloud.
+The following steps provide instructions to run the entire iobio stack in the cloud.
 
 ### Stack architecture
 
@@ -33,14 +19,13 @@ All iobio applications run behind a reverse proxy called [traefik](https://docs.
 
 | Service | Description | Host | Exposed Port (on proxy network) |
 |---------|-------------|----- | -------------|
-| gene | A client app for investigating potential disease-causing variants in real-time | [https://gene.frameshift.io](https://gene.frameshift.io) | 80 |
-| gru | Iobio backend service | [https://gene.frameshift.io/api](https://gene.frameshift.io/api) | 9001 |
+| gene | A client app for investigating potential disease-causing variants in real-time | [https://iobio.frameshift.io](https://iobio.frameshift.io) | 80 |
+| gru | Iobio backend service | [https://iobio.frameshift.io/api](https://iobio.frameshift.io/api) | 9001 |
 
 ### Boot up a machine
 
 - Ubuntu is the recommended OS
-- Machine will need a large root device volume ~120GB
-- Once the machine is running, configure DNS records
+- Once the machine is running, configure DNS records (Two A records, one for gene.iobio and one for the traefik dashboard)
 
 See the following notes for setting up AWS infrastructure:
 
@@ -55,12 +40,13 @@ Customize the infrasturcture to your liking.
 ### Install docker
 
 ```bash
-# install docker
+# install docker & make
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
 apt-get update
 apt-cache policy docker-ce
 apt-get install -y docker-ce
+apt-get install make
 
 # add ubuntu user to docker group
 usermod -aG docker ubuntu
@@ -72,11 +58,11 @@ usermod -aG docker ubuntu
 # initialize a new swarm
 docker swarm init
 
-# verify swarm mode
+# verify swarm mode is active
 docker info
 ```
 
-### Make file to hold TLS certs
+### Create file to hold TLS certs
 
 ```bash
 mkdir letsencrypt
@@ -84,7 +70,21 @@ touch letsencrypt/acme.json
 chmod 600 letsencrypt/acme.json
 ```
 
-### Verify data volume is populated
+### Verify sqlite cache volume is populated
+
+The sqlite cache is available as an EBS snapshot. As of 9/7/21, the snapshot ID is `snap-0cb072291ae8dedd8`.
+
+1. Create a new EBS volume from the snapshot above
+1. Attach the volume to the EC2 instance via the AWS console
+1. Create the sqlite directory and mount the volume to that directory (similar to the steps below but see the link for more detailed instructions)
+
+```bash
+mkdir sqlite
+
+sudo mount /dev/xvdf sqlite/
+```
+
+[https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html)
 
 ```
 sqlite/data/
@@ -93,6 +93,8 @@ sqlite/data/
 ├── geneinfo
 ├── genomebuild
 ├── gnomad_header.txt
+├── hpo
+├── lost+found
 ├── md5_reference_cache
 ├── references
 └── vep-cache
@@ -102,12 +104,13 @@ sqlite/data/
 
 ```bash
 # launch reverse proxy
-docker stack deploy -c docker/traefik-stack.yml traefik
+make deploy-traefik-stack
+
 # launch iobio apps
-docker stack deploy -c docker/iobio-stack.yml iobio
+make deploy-iobio-stack
 
 # verify services
-docker service ls
+make check-services
 
 # check service logs
 docker service logs <service-name>

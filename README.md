@@ -1,6 +1,6 @@
 # iobio-services
 
-A distributed Iobio application running across multiple Docker containers.
+Distributed Iobio.io applications running across multiple Docker containers.
 
 [http://iobio.io/](http://iobio.io/)
 
@@ -12,7 +12,7 @@ A distributed Iobio application running across multiple Docker containers.
 
 [1. Local Development](./docs/01-local-development.md)
 
-[2. Production Deployment](./docs/02-production-deployment.md)
+[2. Production Deployment](./docs/02-swarm-deployment.md)
 
 [3. Gru.iobio (Backend)](./docs/03-gru.md)
 
