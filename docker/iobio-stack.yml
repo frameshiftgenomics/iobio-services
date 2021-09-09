@@ -20,7 +20,7 @@ services:
       replicas: 1
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.gene.rule=Host(`iobio.frameshift.io`)"
+        - "traefik.http.routers.gene.rule=Host(`gene.nebula.org`)"
         - "traefik.http.routers.gene.entrypoints=websecure"
         - "traefik.http.routers.gene.tls=true"
         - "traefik.http.routers.gene.tls.certresolver=leresolver"
@@ -36,7 +36,7 @@ services:
       replicas: 2
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.gru.rule=Host(`iobio.frameshift.io`) && PathPrefix(`/api/`)"
+        - "traefik.http.routers.gru.rule=Host(`gene.nebula.org`) && PathPrefix(`/api/`)"
         - "traefik.http.routers.gru.entrypoints=websecure"
         - "traefik.http.routers.gru.tls=true"
         - "traefik.http.routers.gru.tls.certresolver=leresolver"

@@ -1,45 +1,31 @@
 #!/bin/bash
 
-# Make sure ubuntu initializes, then install packages
-sleep 30
-sudo apt-get update
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  awscli \
-  apt-transport-https \
-  ca-certificates \
-  curl \
-  gnupg-agent \
-  software-properties-common
+# initialize new docker swarm
+docker swarm init
 
-# Add Docker’s official GPG key
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+# verify swarm mode is active
+docker info
 
-# Set up Docker's stable repository
-sudo add-apt-repository \
-  "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) \
-  stable"
-
-# Install the latest version of Docker Engine and containerd
-sudo apt-get update
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io
-
-# Download the current stable release of Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-
-# Apply executable permissions to the binary
-sudo chmod +x /usr/local/bin/docker-compose
 
 # Make file to hold TLS certs
 mkdir letsencrypt
 touch letsencrypt/acme.json
 chmod 600 letsencrypt/acme.json
 
-# Populate the data directory
-aws s3 sync s3://nebula-iobio-services sqlite
 
-# Pull our latest docker service and start it
-# The build directory needs to exist, even if we aren't building...
-mkdir gene gru
-sudo docker-compose pull
-sudo docker-compose up -d
+# Mount data cache
+mkdir sqlite
+
+sudo mount /dev/nvme1n1 sqlite/
+
+sudo bash -c 'echo "/dev/nvme1n1 /home/ubuntu/sqlite ext4 defaults  0 2" >> /etc/fstab'
+
+# Launch stacks
+# launch reverse proxy
+make deploy-traefik-stack
+
+# launch iobio apps
+make deploy-iobio-stack
+
+# verify services
+make check-services

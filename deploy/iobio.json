@@ -24,30 +24,40 @@
           "volume_size": 150,
           "volume_type": "gp2",
           "delete_on_termination": true
+        },
+        {
+          "device_name": "/dev/sda2",
+          "volume_type": "gp2",
+          "snapshot_id": "snap-0cb072291ae8dedd8",
+          "delete_on_termination": true
         }
-      ],
-      "temporary_iam_instance_profile_policy_document": {
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Action": "s3:GetObject",
-            "Resource": "arn:aws:s3:::nebula-iobio-services/*"
-          },
-          {
-            "Effect": "Allow",
-            "Action": "s3:ListBucket",
-            "Resource": "arn:aws:s3:::nebula-iobio-services"
-          }
-        ]
-      }
+      ]
     }
   ],
   "provisioners": [
     {
+      "type": "shell",
+      "inline": ["mkdir docker"]
+    },    
+    {
       "type": "file",
-      "source": "../docker-compose-prod.yml",
-      "destination": "docker-compose.yml"
+      "source": "../Makefile",
+      "destination": "Makefile"
+    },
+    {
+      "type": "file",
+      "source": "../docker/traefik-stack.yml",
+      "destination": "docker/traefik-stack.yml"
+    },
+    {
+      "type": "file",
+      "source": "../docker/iobio-stack.yml",
+      "destination": "docker/iobio-stack.yml"
+    },
+    {
+      "type": "shell",
+      "script": "setup.sh",
+      "expect_disconnect": true
     },
     {
       "type": "shell",

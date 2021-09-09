@@ -5,9 +5,9 @@ ifeq ($(GIT_TAG),)
 	GIT_TAG=latest
 endif
 
-GENE_IMG = gene.iobio:${GIT_TAG}
-GRU_IMG = gru.iobio:${GIT_TAG}
-DOCKERHUB_ORG ?= frameshiftgenomics
+GENE_IMG = iobio_gene:${GIT_TAG}
+GRU_IMG = iobio_gru:${GIT_TAG}
+DOCKERHUB_ORG ?= nebulagenomics
 GENE_REPOSITORY = ${DOCKERHUB_ORG}/${GENE_IMG}
 GRU_REPOSITORY = ${DOCKERHUB_ORG}/${GRU_IMG}
 

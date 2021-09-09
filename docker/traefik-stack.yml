@@ -32,11 +32,11 @@ services:
       - --api=true
       # TLS - Configure the tls letsencrypt challenge with our custom resolver
       # Replace with your letsencrypt email
-      - --certificatesresolvers.leresolver.acme.email=info@frameshift.io
+      - --certificatesresolvers.leresolver.acme.email=crab@nebula.org
       - --certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.leresolver.acme.tlschallenge=true
       # Comment out this line after testing to use the production server and obtain a valid certificate
-      - --certificatesresolvers.leresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
+      # - --certificatesresolvers.leresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
     ports:
       - "80:80"
       - "443:443"
@@ -51,12 +51,12 @@ services:
       labels:
         - "traefik.enable=true"
         # Dashboard
-        - "traefik.http.routers.traefik.rule=Host(`traefik.frameshift.io`)"
+        - "traefik.http.routers.traefik.rule=Host(`traefik.nebula.org`)"
         - "traefik.http.routers.traefik.service=api@internal"
         - "traefik.http.routers.traefik.tls.certresolver=leresolver"
         - "traefik.http.routers.traefik.entrypoints=websecure"
         - "traefik.http.routers.traefik.middlewares=authtraefik"
-        - "traefik.http.middlewares.authtraefik.basicauth.users=user:$$apr1$$q8eZFHjF$$Fvmkk//V6Btlaf2i/ju5n/" # user/password
+        - "traefik.http.middlewares.authtraefik.basicauth.users=admin:$$apr1$$sSiOOXu2$$CHnv1RZNIZ5XS9HnshLrd0" # user/password
         - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
         # Global redirect to https
