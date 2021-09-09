@@ -288,7 +288,6 @@ main.content.clin, main.v-content.clin
       @gene-selected="onGeneClicked"
       @gene-lists-changed="onGeneListsChanged"
       @remove-gene="onRemoveGene"
-      @analyze-coding-variants-only="onAnalyzeCodingVariantsOnly"
       @show-known-variants="onShowKnownVariantsCard"
       @show-coverage-threshold="onShowCoverageThreshold"
       @analyze-all="onAnalyzeAll"
@@ -488,6 +487,7 @@ main.content.clin, main.v-content.clin
         :isFather="isFather"
         :geneLists="geneLists"
         :launchedFromClin="launchedFromClin"
+        :forceKnownVariantsViz="forceKnownVariantsViz"
         @cohort-variant-click="onCohortVariantClick"
         @cohort-variant-outside-click="onCohortVariantOutsideClick"
         @cohort-variant-hover="onCohortVariantHover"
@@ -505,6 +505,8 @@ main.content.clin, main.v-content.clin
         @gene-region-zoom-reset="onGeneRegionZoomReset"
         @show-coverage-cutoffs="showCoverageCutoffs = true;showCoverageThreshold = true"
         @show-pileup-for-variant="onShowPileupForVariant"
+        @analyze-coding-variants-only="onAnalyzeCodingVariantsOnly"
+
         >
         </variant-all-card>
 
@@ -869,7 +871,8 @@ export default {
     paramVcfs:             null,
     paramTbis:             null,
     paramAffectedStatuses: null,
-    paramFrameSource:      null
+    paramFrameSource:      null,
+    paramExperimentId:     null,
   },
   data() {
     let self = this;
@@ -983,6 +986,8 @@ export default {
       showMotherCard: false,
       showFatherCard: false,
 
+      forceKnownVariantsViz: null,
+
       inProgress: {},
 
       badgeCounts: {coverage: 0},
@@ -1087,6 +1092,7 @@ export default {
       clinShowGeneApp: false,
       variantCount: 0,
       interpretationProgressDialog: false,
+      experimentId: null,
     }
   },
 
@@ -1219,7 +1225,8 @@ export default {
 
       self.setAppMode();
 
-      self.genomeBuildHelper = new GenomeBuildHelper(self.globalApp, self.launchedFromHub, { DEFAULT_BUILD: 'GRCh37' });
+      self.genomeBuildHelper = new GenomeBuildHelper(self.globalApp, self.launchedFromHub, 
+        { DEFAULT_BUILD: self.isEduMode ? 'GRCh37' : 'GRCh38' });
 
       self.promiseAddCacheHelperListeners()
       .then(function() {
@@ -1262,6 +1269,10 @@ export default {
           self.genomeBuildHelper,
           self.launchedFromClin,
           new FreebayesSettings());
+
+        self.cohortModel.on("knownVariantsVizChange", function(viz) {
+          self.forceKnownVariantsViz = viz;
+        });
 
         self.geneModel.on("geneDangerSummarized", function(dangerSummary) {
           self.geneModel.promiseGetCachedGeneObject(dangerSummary.geneName)
@@ -1406,7 +1417,10 @@ export default {
           isPedigree || (self.paramAnalysisId && self.paramAnalysisId.length > 0),
           self.projectId,
           self.paramGeneSetId,
-          self.paramVariantSetId)
+          self.paramVariantSetId,
+          self.paramBuild,
+          self.experimentId
+          )
         .then(data => {
           if (isPedigree && !data.foundPedigree) {
             self.onShowSnackbar({message: 'No pedigree for this sample. Loading proband only.', timeout: 5000})
@@ -1436,6 +1450,7 @@ export default {
           // when launching gene.iobio from Mosaic
           if (self.variantSet && self.variantSet.variants) {
             let bypassedCount = 0;
+            let bypassedMessages = [];
             self.variantSet.variants.filter(function(variant) {
               return variant.sample_ids.indexOf(parseInt(self.sampleId)) >= 0;
             })
@@ -1461,7 +1476,9 @@ export default {
                   self.analysis.payload.genes.push(importedVariant.gene);
                 }
               } else {
-                console.log("Bypassing variant " + variant.chr + " " + variant.pos + " because gene not provided")
+                let message = "Bypassing variant chr " + variant.chr + ", position " + variant.pos + " because the gene symbol was not provided.";
+                bypassedMessages.push(message)
+                console.log(message)
                 bypassedCount++;
               }
             })
@@ -1470,7 +1487,7 @@ export default {
                 alertify.alert("Error", "None of the " + bypassedCount + " variants were loaded because the variants were missing gene name.", )
 
               } else {
-                alertify.alert("Warning", bypassedCount + " variants bypassed due to missing gene name")
+                alertify.alert("Warning", bypassedCount + " variants bypassed." + "<br><br>" + bypassedMessages.join("<br>"))
 
               }
             }
@@ -1772,7 +1789,6 @@ export default {
     callVariants: function(theGene) {
       let self = this;
       if (theGene == null) {
-        self.showLeftPanelForGenes();
         self.cacheHelper.analyzeAll(self.cohortModel, true);
       } else {
         self.promiseLoadData()
@@ -2248,7 +2264,7 @@ export default {
         self.showVariantAssessment = false;
         self.activeGeneVariantTab = self.isBasicMode ? "0" : "1";
 
-        self.showVariantExtraAnnots(sourceComponent ? sourceComponent.relationship : 'proband', variant);
+        self.showVariantExtraAnnots(sourceRelationship ? sourceRelationship : 'proband', variant);
 
         self.getVariantCardRefs().forEach(function(variantCard) {
           if (sourceComponent === null || variantCard !== sourceComponent) {
@@ -2427,13 +2443,13 @@ export default {
       }
 
     },
-    onKnownVariantsVizChange: function(viz) {
+    onKnownVariantsVizChange: function(viz, selectedCategories) {
       let self = this;
       if (viz) {
         self.cohortModel.knownVariantsViz = viz;
       }
       if (self.showKnownVariantsCard && self.cohortModel && self.cohortModel.isLoaded && Object.keys(self.selectedGene).length > 0) {
-        self.cohortModel.promiseLoadKnownVariants(self.selectedGene, self.selectedTranscript);
+        self.cohortModel.promiseLoadKnownVariants(self.selectedGene, self.selectedTranscript, selectedCategories);
       }
     },
     onSfariVariantsVizChange: function(viz) {
@@ -2448,8 +2464,11 @@ export default {
     },
     onKnownVariantsFilterChange: function(selectedCategories) {
       let self = this;
-      self.filterModel.setModelFilter('known-variants', 'clinvar', selectedCategories);
-      self.cohortModel.setLoadedVariants(self.selectedGene, 'known-variants');
+      if (self.showKnownVariantsCard && self.cohortModel && self.cohortModel.isLoaded && Object.keys(self.selectedGene).length > 0) {
+        self.cohortModel.promiseLoadKnownVariants(self.selectedGene, self.selectedTranscript, selectedCategories);
+      }
+      // self.filterModel.setModelFilter('known-variants', 'clinvar', selectedCategories);
+      // self.cohortModel.setLoadedVariants(self.selectedGene, 'known-variants');
     },
     onSfariVariantsFilterChange: function(selectedCategories) {
         let self = this;
@@ -2545,7 +2564,6 @@ export default {
     },
 
     onAnalyzeAll: function() {
-      this.showLeftPanelForGenes();
       this.cacheHelper.analyzeAll(this.cohortModel);
     },
     onClearAllGenes: function() {
@@ -2745,6 +2763,9 @@ export default {
         self.sampleId = self.paramSampleId;
       } else if (self.paramSampleUuid && self.paramSampleUuid.length > 0) {
         self.sampleId = self.paramSampleUuid;
+      }
+      if(self.paramExperimentId && self.paramExperimentId.length > 0) {
+        self.experimentId = self.paramExperimentId;
       }
       if (self.paramProjectId && self.paramProjectId.length > 0) {
         self.projectId = self.paramProjectId;
@@ -3168,12 +3189,12 @@ export default {
       self.showCoverageThreshold = showIt;
 
     },
-    onShowKnownVariantsCard: function(showIt) {
+    onShowKnownVariantsCard: function(showIt, selectedCategories) {
       let self = this;
       self.showKnownVariantsCard = showIt;
       self.setNonProbandModels();
       if (self.showKnownVariantsCard) {
-        self.onKnownVariantsVizChange();
+        self.onKnownVariantsVizChange(showIt, selectedCategories);
       }
     },
     onShowSfariVariantsCard: function(showIt) {
@@ -3199,7 +3220,16 @@ export default {
       self.setNonProbandModels();
     },
     onAnalyzeCodingVariantsOnly: function(analyzeCodingVariantsOnly) {
-      this.cohortModel.analyzeCodingVariantsOnly = analyzeCodingVariantsOnly;
+      let self = this;
+      self.cohortModel.analyzeCodingVariantsOnly = analyzeCodingVariantsOnly;
+      self.onShowSnackbar( {message: 'Clearing data.', timeout: 2000, bottom: true, right: true});
+      self.promiseClearCache().then(function() {
+        setTimeout(function() {
+          let theMessage = 'Click \'Analyze all\' to re-run.'
+          self.onShowSnackbar( {message: theMessage, timeout: 10000, close:true});
+        }, 2000)
+
+      })
     },
     onFilterSettingsApplied: function(stashedVariant) {
       let self = this;
@@ -3678,7 +3708,7 @@ export default {
 
         self.geneModel.setSourceForGenes(clinObject.selectedPhenotypeGenes, "phenotype_gene_list")
 
-        let options = {isFromClin: true, phenotypes: new_genes};
+        let options = {isFromClin: true, phenotypes: new_genes, replace: true};
         self.onApplyGenes(new_genes.join(), options);
       }
       let responseObject = {success: true, type: 'message-received', sender: 'gene.iobio.io'};

@@ -11,13 +11,13 @@ vepCacheDir=$8
 vepREVELFile=$9
 vepAF=${10}
 vepPluginDir=${11}
-isRefSeq=${12}
-hgvsNotation=${13}
-getRsId=${14}
-gnomadUrl=${15}
-gnomadRegionFileStr=${16}
-gnomadHeaderFile=${17}
-decompose=${18}
+hgvsNotation=${12}
+getRsId=${13}
+gnomadUrl=${14}
+gnomadRegionFileStr=${15}
+gnomadHeaderFile=${16}
+decompose=${17}
+gnomadRenameChr=${18}
 
 # default optional stages to no-op
 subsetStage=cat
@@ -57,10 +57,18 @@ if [ "$gnomadUrl" ]; then
     
     # These are the gnomAD INFO fields to add to the input vcf
     annotsToAdd=CHROM,POS,REF,ALT,INFO/AF,INFO/AN,INFO/AC,INFO/nhomalt_raw,INFO/AF_popmax,INFO/AF_fin,INFO/AF_nfe,INFO/AF_oth,INFO/AF_amr,INFO/AF_afr,INFO/AF_asj,INFO/AF_eas,INFO/AF_sas
-    
+    if [ "$genomeBuildName" == "GRCh38" ]; then
+        annotsToAdd=CHROM,POS,REF,ALT,INFO/AF,INFO/AN,INFO/AC,INFO/nhomalt_raw,INFO/AF_popmax,INFO/AF-fin,INFO/AF-nfe,INFO/AF-oth,INFO/AF-amr,INFO/AF-afr,INFO/AF-asj,INFO/AF-eas,INFO/AF-sas
+    fi 
 
     function gnomadAnnotFunc {
-        vt rminfo -t $annotsToRemove - | bgzip -c > gnomad.vcf.gz
+        if [ "$gnomadRenameChr" ]; then
+                echo -e "$gnomadRenameChr" > gnomad_rename_chr.txt
+                vt rminfo -t $annotsToRemove - | bcftools annotate --rename-chrs gnomad_rename_chr.txt | bgzip -c > gnomad.vcf.gz
+        else
+                vt rminfo -t $annotsToRemove - | bgzip -c > gnomad.vcf.gz
+        fi        
+
         tabix gnomad.vcf.gz
         
         # Add the gnomAD INFO fields to the input vcf
@@ -73,11 +81,9 @@ fi
 
 echo -e "$contigStr" > contigs.txt
 
+vepBaseArgs="-i STDIN --format vcf --cache --dir_cache $vepCacheDir --offline --vcf -o STDOUT --no_stats --no_escape --sift b --polyphen b --regulatory --fork 4 --merged --fasta $refFastaFile"
 
-# TODO: remove --dir_cache from vep Dockerfile since we're overriding it here.
-# Actually, move all the vep args into this script so they aren't split
-# between two locations.
-vepArgs="--assembly $genomeBuildName --format vcf --allele_number --dir_cache $vepCacheDir"
+vepArgs="$vepBaseArgs --assembly $genomeBuildName --allele_number"
 
 if [ "$vepREVELFile" ]; then
     vepArgs="$vepArgs --dir_plugins $vepPluginDir --plugin REVEL,$vepREVELFile"
@@ -85,10 +91,6 @@ fi
 
 if [ "$vepAF" == "true" ]; then
     vepArgs="$vepArgs --af --af_gnomad --af_esp --af_1kg --max_af"
-fi
-
-if [ "$isRefSeq" == "true" ]; then
-    vepArgs="$vepArgs --refseq"
 fi
 
 if [ "$hgvsNotation" == "true" ]; then
@@ -99,11 +101,12 @@ if [ "$getRsId" == "true" ]; then
     vepArgs="$vepArgs --check_existing"
 fi
 
-if [ "$hgvsNotation" == "true" ] || [ "$getRsId" == "true" ] || [ "$isRefSeq" == "true" ]; then
-    vepArgs="$vepArgs --fasta $refFastaFile"
+tabixVcfArg=$vcfUrl
+if [ -n "${tbiUrl}" ]; then
+    tabixVcfArg="$vcfUrl##idx##$tbiUrl"
 fi
 
-tabix_od -h $vcfUrl $region $tbiUrl | \
+tabix -h $tabixVcfArg $region | \
     bcftools annotate -h contigs.txt - | \
     $subsetStage | \
     $decomposeStage | \

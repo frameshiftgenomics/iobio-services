@@ -126,16 +126,16 @@
         height: 48px
 
       .variant-column-subheader
-        font-size: 13px
-        font-style: italic
+        font-size: 12px
+        font-weight: 500
+        font-style: normal
         margin-bottom: 5px
         color: $app-color
-        margin-top: -5px
     
       .variant-column-loading
         font-size: 12px
         font-style: italic
-        margin-top: 10px
+        margin-bottom: 10px
 
       .variant-row
         display: flex
@@ -485,7 +485,7 @@
               :coverageMedian="cohortModel.filterModel.geneCoverageMedian"
               :coverageDangerRegions="coverageDangerRegions"
               :currentPoint="coveragePoint"
-              :maxDepth="cohortModel.maxDepth"
+              :maxDepthProp="coverageMaxDepth"
               :regionStart="coverageRegionStart"
               :regionEnd="coverageRegionEnd"
               :width="150"
@@ -529,7 +529,7 @@
       </div>
       <div class="variant-inspect-column " v-if="selectedVariant && showGenePhenotypes" >
           <div class="variant-column-header">
-            Gene Associations
+            Gene:Phenotype Associations
             <v-divider></v-divider>
           </div>
           <div v-if="genePhenotypeHits && genePhenotypeHits!==null && genePhenotypeHits.length" >
@@ -622,27 +622,12 @@
       <div class="variant-inspect-column" v-if="selectedVariant">
           <div class="variant-column-header">
               Population Frequency
-            <info-popup v-if="!isSimpleMode" :name="afGnomAD.infoPopup" 
-            :extraInfo1="afGnomAD.extraInfo1"
-            :extraInfo2="afGnomAD.extraInfo2"></info-popup>
-            <v-divider></v-divider>
+              <v-divider></v-divider>
           </div>
           <div class="variant-column-hint" v-if="isSimpleMode">
             Common variants typically don’t cause diseases.
           </div>
-          <div class="variant-column-subheader"  v-if="!isSimpleMode">
-            <span>{{ afGnomAD.source }}</span>
-          </div>
-          <variant-inspect-row :clazz="afGnomAD.class" :value="afGnomAD.percent" :label="`Allele frequency`" :link="afGnomAD.link" >
-          </variant-inspect-row>
-          <variant-inspect-row v-if="!isSimpleMode && afGnomAD.percentPopMax" :clazz="afGnomAD.class" :value="afGnomAD.percentPopMax" :label="`Population max allele frequency`" >
-          </variant-inspect-row>
-          <div v-if="!isSimpleMode && afGnomAD.totalCount > 0" class="variant-row no-icon">
-            <span>{{ afGnomAD.altCount }} alt of {{ afGnomAD.totalCount }} total</span>
-          </div>
-          <div v-if="!isSimpleMode && afGnomAD.homCount > 0"  class="variant-row no-icon">
-            <span>{{ afGnomAD.homCount }} homozygotes</span>
-          </div>
+
           <div class="variant-column-loading"  v-if="afGnomAD.loading">
             <span v-if="!info || (info.HGVSpLoading && info.HGVScLoading) && !isSimpleMode"
               style="margin-top:2px;min-width:80px;margin-left:0px;margin-right:0px"
@@ -651,6 +636,35 @@
               {{ afGnomAD.loading }} 
             </span>
           </div>
+
+          <div class="variant-column-subheader"  v-if="!isSimpleMode">
+            <span>{{ afGnomAD.source }}</span>
+          </div>
+          <variant-inspect-row :clazz="afGnomAD.class" :value="gnomadFreq" :label="afGnomAD.label" :link="afGnomAD.link" >
+          </variant-inspect-row>
+          <variant-inspect-row v-if="!isSimpleMode && afGnomAD.freqPopMax" :clazz="afGnomAD.class" :value="gnomadFreqPopMax" :label="`Population max allele frequency`" >
+          </variant-inspect-row>
+          <div v-if="!isSimpleMode && afGnomAD.totalCount > 0" class="variant-row no-icon">
+            <span>{{ afGnomAD.altCount }} alt of {{ afGnomAD.totalCount }} total</span>
+          </div>
+          <div v-if="!isSimpleMode && afGnomAD.homCount > 0"  class="variant-row no-icon">
+            <span>{{ afGnomAD.homCount }} homozygotes</span>
+          </div>
+
+          <variant-af-pop-menu 
+              v-if="!isSimpleMode && selectedVariant.hasOwnProperty('gnomAD') && selectedVariant.gnomAD.hasOwnProperty('pop') && selectedVariant.gnomAD.af != '.'" 
+              :selectedVariant="selectedVariant">
+          </variant-af-pop-menu>
+          
+          <div v-if="!isSimpleMode && afGnomAD.hasOwnProperty('freqExomes')"
+          style="margin-top: 0px"  class="variant-column-subheader" >
+            <span>gnomAD exomes</span>
+          </div>
+          <variant-inspect-row 
+            v-if="!isSimpleMode && afGnomAD.hasOwnProperty('freqExomes')"
+            clazz="level-blank" :value="afGnomAD.freqExomes" label="Allele frequency" >
+          </variant-inspect-row>
+
       </div>
 
       <div class="variant-inspect-column" style="min-width:90px" v-if="!isSimpleMode && selectedVariant">
@@ -773,6 +787,7 @@ import VariantInspectQualityRow from "../partials/VariantInspectQualityRow.vue"
 import VariantInspectInheritanceRow from "../partials/VariantInspectInheritanceRow.vue"
 import VariantLinksMenu         from "../partials/VariantLinksMenu.vue"
 import VariantAliasesMenu       from "../partials/VariantAliasesMenu.vue"
+import VariantAfPopMenu         from "../partials/VariantAfPopMenu.vue"
 import InfoPopup                from "../partials/InfoPopup.vue"
 import ToggleButton             from '../partials/ToggleButton.vue'
 import DepthViz                 from "../viz/DepthViz.vue"
@@ -793,6 +808,7 @@ export default {
   components: {
     AppIcon,
     InfoPopup,
+    VariantAfPopMenu,
     VariantLinksMenu,
     VariantAliasesMenu,
     VariantInspectRow,
@@ -804,7 +820,8 @@ export default {
     ToggleButton,
     ConservationScoresViz,
     MultialignSeqViz,
-    GeneAssociationsDialog
+    GeneAssociationsDialog,
+
   },
   props: {
     selectedGene: null,
@@ -834,6 +851,7 @@ export default {
       coverage: null,
       coveragePoint: null,
       selectedExon: null,
+      coverageMaxDepth: null,
 
       filteredTranscript: null,
 
@@ -925,7 +943,7 @@ export default {
             if (popAF.length > 0) {
               popAF += ", ";
             }
-            popAF += label + " " + (afObject[key] == "." ? "0%" : self.globalApp.utility.percentage(afObject[key]));
+            popAF += label + " " + (afObject[key] == "." ? "0" : d3.format('.3n')(afObject[key]));
           }
         }
       }
@@ -1249,6 +1267,7 @@ export default {
           self.coverageRegionStart = self.getCoverageRegionStart();
           self.coverageRegionEnd   = self.getCoverageRegionEnd();
           self.conservationSeqType = "nuc";
+          self.coverageMaxDepth    = 0;
 
           let theCoverage = self.cohortModel.getModel(self.selectedVariantRelationship).coverage.filter(function(coveragePoint) {
             return coveragePoint[0] >= self.coverageRegionStart && coveragePoint[0] <= self.coverageRegionEnd;
@@ -1259,7 +1278,11 @@ export default {
             newPoint.push(covPoint[0])
             newPoint.push(covPoint[1])
             clonedCoverage.push(newPoint)
+            if (covPoint[1] > self.coverageMaxDepth) {
+              self.coverageMaxDepth = +covPoint[1]
+            }
           })
+          self.coverageMaxDepth = self.coverageMaxDepth +  (Math.round(self.coverageMaxDepth*.2));
           self.coverage = clonedCoverage
           setTimeout(function() {
             self.showCoverageAlleleBar();
@@ -1378,7 +1401,7 @@ export default {
 
       if (self.exon) {
         let exonWidth = +self.exon.end  -  +self.exon.start;
-        return +self.exon.start - Math.round(exonWidth * .60);
+        return +self.exon.start - exonWidth;
       } else  {
         return +self.selectedVariant.start - 1000;
       }
@@ -1387,7 +1410,7 @@ export default {
       let self = this;
       if (self.exon) {
         let exonWidth = +self.exon.end  -  +self.exon.start;
-        return +self.exon.end + Math.round(exonWidth * .60);
+        return +self.exon.end + exonWidth;
       } else  {
         return +self.selectedVariant.start + 1000;
       }
@@ -1589,8 +1612,12 @@ export default {
         return 'HGVS';
       }
     },
-
-
+    gnomadFreqPopMax: function() {
+      return this.afGnomAD ? d3.format('.3n')(this.afGnomAD.freqPopMax) : '-';
+    },
+    gnomadFreq: function() {
+      return this.afGnomAD ? d3.format('.3n')(this.afGnomAD.freq) : '-';
+    },
 
       coord: function() {
       let self = this;
@@ -1712,9 +1739,10 @@ export default {
 
 
             var gnomAD = {};
-            gnomAD.percent       = afTot == 0 ? '0%' : d3.format(".3%")(afTot);
+            gnomAD.label = "Allele frequency"
+            gnomAD.freq       = afTot == 0 ? '0' : d3.format(".3n")(afTot);
             gnomAD.class         = this.getAfClass(afTot);
-            gnomAD.percentPopMax = afPopMax == 0 ? '0%' : d3.format(".3%")(afPopMax);
+            gnomAD.freqPopMax    = afPopMax == 0 ? '0' : d3.format(".3n")(afPopMax);
             gnomAD.altCount      = acTot;
             gnomAD.totalCount    = anTot;
             gnomAD.homCount      = nHomTot;
@@ -1752,12 +1780,25 @@ export default {
                   + " genomes."
           let extraInfo2 = this.getAfFilterInfo();
 
+          // We will  show the AF from VEP (exomes) below the AF from gnomAD genomes so that
+          // the user understands that that filtering used this AF rather than the
+          // one from the gnomAD genomes
+          let afExomes = 0
+          if (this.selectedVariant.vepAf.gnomAD.AF == "." 
+            && this.selectedVariant.vepAf.MAX.present ) {
+            afExomes = this.selectedVariant.vepAf.MAX.AF == "."  ? 0 : this.selectedVariant.vepAf.MAX.AF 
+          } else {
+            afExomes = this.selectedVariant.vepAf.gnomAD.AF == "." ? 0 : this.selectedVariant.vepAf.gnomAD.AF;
+          }
+
           if (this.selectedVariant.gnomAD == null || this.selectedVariant.gnomAD.af == null) {
-            return {percent: "?", link: null, class: "", source: source, 
-                    infoPopup: infoPopup, extraInfo1: extraInfo1, extraInfo2: extraInfo2};            
+            return {freq: "?", link: null, class: "", source: source,
+                    infoPopup: infoPopup, extraInfo1: extraInfo1, extraInfo2: extraInfo2,
+                    afExomes: afExomes};
           } else if (this.selectedVariant.gnomAD.af  == '.') {
-            return {percent: "0%", link: null, class: "level-high", source: source,
-                    infoPopup: infoPopup, extraInfo1: extraInfo1, extraInfo2: extraInfo2};
+            return {freq: "0", link: null, class: "level-high", source: source,
+                    infoPopup: infoPopup, extraInfo1: extraInfo1, extraInfo2: extraInfo2,
+                    afExomes: afExomes};
           } else  {
             var gnomAD = {};
             gnomAD.link =  "http://gnomad.broadinstitute.org/variant/"
@@ -1770,9 +1811,10 @@ export default {
               gnomAD.link += "?dataset=gnomad_r3"
             };
 
-            gnomAD.percent       = this.globalApp.utility.percentage(this.selectedVariant.gnomAD.af);
+            gnomAD.label = "Allele frequency"
+            gnomAD.freq       = d3.format('.3n')(this.selectedVariant.gnomAD.af);
             gnomAD.class         = this.getAfClass(this.selectedVariant.gnomAD.af);
-            gnomAD.percentPopMax = this.selectedVariant.gnomAD.afPopMax != '.' ? this.globalApp.utility.percentage(this.selectedVariant.gnomAD.afPopMax) : '0%';
+            gnomAD.freqPopMax    = this.selectedVariant.gnomAD.afPopMax != '.' ? this.selectedVariant.gnomAD.afPopMax : '0.0';
             gnomAD.altCount      = this.selectedVariant.gnomAD.altCount;
             gnomAD.totalCount    = this.selectedVariant.gnomAD.totalCount;
             gnomAD.homCount      = this.selectedVariant.gnomAD.homCount;
@@ -1781,6 +1823,7 @@ export default {
             gnomAD.infoPopup     = infoPopup;
             gnomAD.extraInfo1    = extraInfo1;
             gnomAD.extraInfo2    = extraInfo2;
+            gnomAD.afExomes      =  afExomes
             
             return gnomAD;
 
@@ -1790,7 +1833,7 @@ export default {
 
 
           if (this.selectedVariant.vepAf == null || this.selectedVariant.vepAf.gnomAD.AF == null) {
-            return {percent: "?", link: null, class: "", source: source, infoPopup: "gnomAD"};
+            return {freq: "?", link: null, class: "", source: source, infoPopup: "gnomAD"};
           } else  {
             var gnomAD = {};
             gnomAD.link = null;
@@ -1814,20 +1857,24 @@ export default {
             } else {
               af = this.selectedVariant.vepAf.gnomAD.AF == "." ? 0 : this.selectedVariant.vepAf.gnomAD.AF;
             }
-             
 
-            gnomAD.percent       = this.globalApp.utility.percentage(af);
+             
+            gnomAD.freq       = d3.format('.3n')(af);
             gnomAD.class         = this.getAfClass(af);
-            gnomAD.percentPopMax = 0;
+            gnomAD.label         = "Allele frequency"
+            gnomAD.source        = source;
+
+            gnomAD.freqPopMax = 0;
             gnomAD.altCount      = 0;
             gnomAD.totalCount    = 0;
             gnomAD.homCount      = 0;
-            gnomAD.source        = source;
+            
             if (this.globalApp.gnomADExtra 
               && !this.globalApp.gnomADExtraAll 
               && !this.selectedVariant.extraAnnot) {
               if (this.globalApp.gnomADExtraMethod == this.globalApp.GNOMAD_METHOD_BCFTOOLS) {
-                gnomAD.loading = 'loading more annotations'
+                gnomAD.loading = 'gnomAD genomes'
+                gnomAD.class = "level-blank"
                 gnomAD.infoPopup  = "gnomAD";
                 gnomAD.extraInfo1 =  
                   'Annotations shown for variant are from gnomAD ' 
@@ -1835,7 +1882,7 @@ export default {
                   + " genomes."
                 
               } else {
-                 gnomAD.loading = 'loading more annotations'
+                 gnomAD.loading = 'loading annotations'
                  gnomAD.infoPopup     = "gnomADExtraVepCustom"
                  gnomAD.extraInfo1 =  
                   'Annotations show for variant are from gnomAD ' 
@@ -1852,7 +1899,7 @@ export default {
             gnomAD.extraInfo2 = this.getAfFilterInfo();
 
 
-            return gnomAD;
+            return gnomAD
           }
 
         }
@@ -1940,5 +1987,8 @@ export default {
 
 }
 </script>
+
+
+
 
 
