@@ -71,7 +71,7 @@ export default class HubSession {
       .then(function(data) {
         variantSet = data;
 
-        self.promiseGetSampleInfo(projectId, sampleId, isPedigree).then(data => {
+        self.promiseGetPedigreeForSample(projectId, sampleId, isPedigree).then(data => {
 
 
           let promises = [];
@@ -326,10 +326,7 @@ export default class HubSession {
     });
   }
 
-  promiseGetSampleInfo(project_id, sample_id) {
-    let self = this;
-    return self.promiseGetPedigreeForSample(project_id, sample_id);
-  }
+
 
   promiseGetSample(project_id, sample_id, rel) {
     let self = this;
@@ -356,34 +353,51 @@ export default class HubSession {
     })
   }
 
-  promiseGetPedigreeForSample(project_id, sample_id) {
+  promiseGetPedigreeForSample(project_id, sample_id, isPedigree) {
     let self = this;
 
     return new Promise(function(resolve, reject) {
-      // Get pedigree for sample
-      self.getPedigreeForSample(project_id, sample_id)
-      .done(rawPedigree => {
-        const rawPedigreeOrig = $.extend({}, rawPedigree);
-        let pedigree = self.parsePedigree(rawPedigree, sample_id)
-        if (pedigree) {
-          resolve({foundPedigree: true, pedigree: pedigree, rawPedigree: rawPedigreeOrig});
-        }
-        else {
-          self.promiseGetSample(project_id, sample_id, 'proband')
-          .then(function(data) {
-            data.foundPedigree = false;
-            resolve(data);
-          })
-        }
-      })
-      .fail(error => {
-        let errorMsg = error.responseJSON.message;
-        let msg = "Error getting pedigree for sample_id " + sample_id
-        alertify.alert("<div class='pb-2 dark-text-important'>"+   msg +  "</div>  <div class='pb-2' font-italic>Please email <a href='mailto:info@frameshift.io'>info@frameshift.io</a> for help resolving this issue.</div><code>" + errorMsg + "</code>")
-          .setHeader("Fatal Error");
+      if (isPedigree) {
+        // If the user click 'Pedigree' from the Mosaic launch dialog, 
+        // get the pedigree for this sample. We will launch gene.iobio 
+        // for the proband of this pedigree, regardless of which sample
+        // was selected. For example, the father could be selected, and
+        // the pedigree will be located for the father, and we will launch
+        // gene.iobio for the proband of that pedigree.
+        self.getPedigreeForSample(project_id, sample_id)
+        .done(rawPedigree => {
+          const rawPedigreeOrig = $.extend({}, rawPedigree);
+          let pedigree = self.parsePedigree(rawPedigree, sample_id)
+          if (pedigree) {
+            resolve({foundPedigree: true, pedigree: pedigree, rawPedigree: rawPedigreeOrig});
+          }
+          else {
+            self.promiseGetSample(project_id, sample_id, 'proband')
+            .then(function(data) {
+              data.foundPedigree = false;
+              resolve(data);
+            })
+          }
+        })
+        .fail(error => {
+          let errorMsg = error.responseJSON.message;
+          let msg = "Error getting pedigree for sample_id " + sample_id
+          alertify.alert("<div class='pb-2 dark-text-important'>"+   msg +  "</div>  <div class='pb-2' font-italic>Please email <a href='mailto:info@frameshift.io'>info@frameshift.io</a> for help resolving this issue.</div><code>" + errorMsg + "</code>")
+            .setHeader("Fatal Error");
 
-        reject("Error getting pedigree for sample " + sample_id + ": " + error);
-      })
+          reject("Error getting pedigree for sample " + sample_id + ": " + error);
+        })
+
+      } else {
+        // If the user clicked 'Individual' from the Mosaic launch dialog, we
+        // will treat the selected sample as the proband.
+        self.promiseGetSample(project_id, sample_id, 'proband')
+        .then(function(data) {
+          data.foundPedigree = false;
+          resolve(data);
+        })
+
+      }
     })
   }
 
@@ -675,19 +689,35 @@ export default class HubSession {
         // The gene symbol is in a different field depending on the genome build.
         // Set the 'gene_symbol' field so that we can pull it from one field.
         let geneSymbolField = null
+        let impactField = null
+        let consequenceField = null
+        let afField = null
         if (build === "GRCh38"){
-          geneSymbolField = 'gene_symbol_GRCh38';
+          geneSymbolField  = 'gene_symbol_GRCh38';
+          impactField      = 'gene_impact_GRCh38';
+          consequenceField = 'gene_consequence_GRCh38';
+          afField          = 'gnomad_allele_frequency_GRCh38';
         }
         else if (build === "GRCh37"){
-           geneSymbolField = 'gene_symbol_GRCh37';
+          geneSymbolField = 'gene_symbol_GRCh37';
+          impactField      = 'gene_impact_GRCh37';
+          consequenceField = 'gene_consequence_GRCh37';
+          afField          = 'gnomad_allele_frequency_GRCh37';
         }
-        if (geneSymbolField) {
-          data.variants.forEach(function(variant) {
-            if (!variant.hasOwnProperty('gene_symbol')) {
-              variant['gene_symbol'] = variant[geneSymbolField];
-            }
-          })
-        }
+        data.variants.forEach(function(variant) {
+          if (geneSymbolField &&  variant[geneSymbolField].length > 0 && !variant.hasOwnProperty('gene_symbol')) {
+            variant['gene_symbol'] = variant[geneSymbolField][0];
+          }
+          if (impactField && variant[impactField].length > 0) {
+            variant['gene_impact'] = variant[impactField][0];
+          }
+          if (consequenceField && variant[consequenceField].length > 0) {
+            variant['gene_consequence'] = variant[consequenceField][0];
+          }
+          if (afField && variant[afField].length > 0) {
+            variant['gnomad_allele_frequency'] = variant[afField][0];
+          }
+        })
 
         resolve(data)
       })
@@ -889,21 +919,9 @@ export default class HubSession {
 
   getVariantSet(projectId, variantSetId, build) {
     let self = this;
-    let annotationUids = [];
-    if(build === "GRCh38"){
-      annotationUids.push('gene_symbol_GRCh38');
-    }
-    else if(build === "GRCh37"){
-      annotationUids.push('gene_symbol_GRCh37');
-    }
-    else {
-      annotationUids.push('gene_symbol');
-    }
     return $.ajax({
-      // url: 'https://mosaic.chpc.utah.edu/api/v1/projects/' + projectId + '/variants/sets/' + variantSetId + "?include_variant_data=true&include_genotype_data=true",
-      url: self.apiDepricated + '/projects/' + projectId + '/variants?variant_set_id=' + variantSetId,
+      url: self.api + '/projects/' + projectId + '/variants/sets/' + variantSetId + "?include_variant_data=true&include_genotype_data=true",
       data: {
-        annotation_uids: annotationUids,
       },
       type: 'GET',
       contentType: 'application/json',
