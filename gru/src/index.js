@@ -1,10 +1,8 @@
 const Koa = require('koa');
 const Router = require('koa-router');
 const cors = require('@koa/cors');
-const logger = require('koa-logger');
 const bodyParser = require('koa-bodyparser');
 const path = require('path');
-const { run } = require('./process.js');
 const { mktemp } = require('./mktemp.js');
 const spawn = require('child_process').spawn;
 const process = require('process');
@@ -15,7 +13,9 @@ const hpoRouter = require('./hpo.js');
 const { parseArgs, dataPath } = require('./utils.js');
 const fs = require('fs');
 const { serveStatic } = require('./static.js');
+const stream = require('stream');
 
+const MAX_STDERR_LEN = 16384;
 
 const router = new Router();
 
@@ -52,7 +52,6 @@ router.post('/viewAlignments', async (ctx) => {
 //
 router.post('/alignmentHeader', async (ctx) => {
   const params = JSON.parse(ctx.request.body);
-  console.log('url going into alignment header: ' + params.url);
   await handle(ctx, 'alignmentHeader.sh', [params.url]);
 });
 
@@ -95,7 +94,6 @@ router.post('/variantHeader', async (ctx) => {
 
 router.post('/getChromosomes', async (ctx) => {
     const params = JSON.parse(ctx.request.body);
-    console.log(JSON.stringify(params, null, 2));
     const indexUrl = params.indexUrl ? params.indexUrl : '';
     await handle(ctx, 'getChromosomes.sh', [params.url, indexUrl]);
 });
@@ -108,7 +106,6 @@ router.post('/vcfReadDepth', async (ctx) => {
 router.post('/alignmentCoverage', async (ctx) => {
 
   const params = JSON.parse(ctx.request.body);
-   console.log(JSON.stringify(params, null, 2));
 
   const url = params.url;
   const indexUrl = params.indexUrl ? params.indexUrl : '';
@@ -186,7 +183,6 @@ router.post('/normalizeVariants', async (ctx) => {
 
 router.post('/getClinvarVariants', async (ctx) => {
     const params = JSON.parse(ctx.request.body);
-    console.log(JSON.stringify(params, null, 2));
 
     const tbiUrl = params.tbiUrl ? params.tbiUrl : '';
     const contigStr = genContigFileStr(params.refNames);
@@ -203,15 +199,29 @@ router.post('/getClinvarVariants', async (ctx) => {
         gnomadHeaderFile, gnomadRenameChr, params.clinSigFilterPhrase
     ];
 
-    console.log(args);
-   
     await handle(ctx, 'getClinvarVariants.sh', args, { ignoreStderr: true });
+});
+
+router.post('/getClinvarVariantsV2', async (ctx) => {
+    const params = JSON.parse(ctx.request.body);
+
+    const tbiUrl = params.tbiUrl ? params.tbiUrl : '';
+    const contigStr = genContigFileStr(params.refNames);
+    const regionStr = genRegionsStr(params.regions);
+    const refFastaFile = dataPath(params.refFastaFile);
+    const gnomadMergeAnnots = params.gnomadMergeAnnots ? params.gnomadMergeAnnots : '';
+
+    const args = [
+        params.vcfUrl, tbiUrl, regionStr, contigStr, refFastaFile, 
+        params.genomeBuildName, gnomadMergeAnnots, params.clinSigFilterPhrase
+    ];
+
+    await handle(ctx, 'getClinvarVariantsV2.sh', args, { ignoreStderr: true });
 });
 
 router.post('/annotateVariants', async (ctx) => {
 
     const params = JSON.parse(ctx.request.body);
-    console.log(JSON.stringify(params, null, 2));
 
     const tbiUrl = params.tbiUrl ? params.tbiUrl : '';
     const contigStr = genContigFileStr(params.refNames);
@@ -236,13 +246,36 @@ router.post('/annotateVariants', async (ctx) => {
 
     ];
 
-    console.log(args);
     await handle(ctx, 'annotateVariants.sh', args, { ignoreStderr: true });
 });
 
+
+router.post('/annotateVariantsV2', async (ctx) => {
+
+    const params = JSON.parse(ctx.request.body);
+
+    const tbiUrl = params.tbiUrl ? params.tbiUrl : '';
+    const contigStr = genContigFileStr(params.refNames);
+    const regionStr = genRegionsStr(params.regions);
+    const vcfSampleNamesStr = params.vcfSampleNames.join("\n");
+    const refFastaFile = dataPath(params.refFastaFile);
+    const vepCacheDir = dataPath('vep-cache');
+    const vepREVELFile = dataPath(params.vepREVELFile);
+    const vepPluginDir = dataPath('vep-cache/Plugins');
+    const gnomadMergeAnnots = params.gnomadMergeAnnots ? params.gnomadMergeAnnots : '';
+
+    const args = [
+        params.vcfUrl, tbiUrl, regionStr, contigStr, vcfSampleNamesStr,
+        refFastaFile, params.genomeBuildName, vepCacheDir, vepREVELFile, params.vepAF,
+        vepPluginDir, params.hgvsNotation, params.getRsId, gnomadMergeAnnots, 
+        params.decompose
+
+    ];
+
+    await handle(ctx, 'annotateVariantsV2.sh', args, { ignoreStderr: true });
+});
 router.post('/annotateEnrichmentCounts', async (ctx) => {
     const params = JSON.parse(ctx.request.body);
-    console.log(JSON.stringify(params, null, 2));
 
     const tbiUrl = params.tbiUrl ? params.tbiUrl : '';
     const contigStr = genContigFileStr(params.refNames);
@@ -278,7 +311,6 @@ router.post('/annotateSomaticVariants', async (ctx) => {
 router.post('/freebayesJointCall', async (ctx) => {
 
   const params = JSON.parse(ctx.request.body);
-  console.log(JSON.stringify(params, null, 2));
 
   const alignments = params.alignmentSources.map(aln => aln.bamUrl).join(',');
   const indices = params.alignmentSources.map(aln => aln.baiUrl).join(',');
@@ -321,7 +353,6 @@ router.post('/freebayesJointCall', async (ctx) => {
 
   const useSuggestedVariants = params.fbArgs.useSuggestedVariants.value ? 'true' : '';
 
-  console.log(freebayesArgs);
   const extraArgs = freebayesArgs;
 
   const args = [
@@ -336,7 +367,6 @@ router.post('/freebayesJointCall', async (ctx) => {
 
 router.post('/clinvarCountsForGene', async (ctx) => {
   const params = JSON.parse(ctx.request.body);
-  console.log(JSON.stringify(params, null, 2));
 
   const region = genRegionStr(params.region);
   const regions = params.regions;
@@ -398,20 +428,17 @@ router.post('/clinReport', async (ctx) => {
 router.post('/getIdColumns', async (ctx) => {
 
     const params = JSON.parse(ctx.request.body);
-    console.log(JSON.stringify(params, null, 2));
 
     const regionStr = genRegionsStr(params.regions, ",");
     const args = [
         params.vcfUrl, regionStr
     ];
 
-    console.log(regionStr);
     await handle(ctx, 'getIdColumns.sh', args, { ignoreStderr: true });
 });
 
 router.post('/checkBamBai', async (ctx) => {
     const params = JSON.parse(ctx.request.body);
-    console.log(JSON.stringify(params, null, 2));
 
     const indexUrl = params.indexUrl ? params.indexUrl : '';
 
@@ -425,7 +452,6 @@ router.post('/checkBamBai', async (ctx) => {
 router.post('/vcfStatsStream', async (ctx) => {
 
   const params = JSON.parse(ctx.request.body);
-  console.log(params);
 
   const regionStr = genRegionsStr(params.regions);
   const contigStr = genContigFileStr(params.refNames);
@@ -440,23 +466,56 @@ router.post('/vcfStatsStream', async (ctx) => {
   const args = [
     params.url, indexUrl, regionStr, contigStr, sampleNamesStr
   ];
-  console.log(args);
 
   await handle(ctx, 'vcfStatsStream.sh', args, { ignoreStderr: true });
 }); 
 
 
 async function handle(ctx, scriptName, args, options) {
-  try {
-    const scriptPath = path.join(__dirname, '../scripts', scriptName);
-    const proc = await run(scriptPath, args, options ? options : {});
-    ctx.body = proc.stdout;
-  }
-  catch (e) {
-    console.error(e);
-    ctx.status = 400;
-    ctx.body = e.toString();
-  }
+
+  const scriptPath = path.join(__dirname, '../scripts', scriptName);
+  const proc = spawn(scriptPath, args, options);
+
+  const out = stream.PassThrough();
+
+  ctx.body = out;
+
+  let closed = false;
+
+  ctx.res.once('close', () => {
+    closed = true;
+    proc.stdout.destroy();
+  });
+
+  proc.stdout.on('data', (chunk) => {
+    if (!closed) {
+      out.write(chunk);
+    }
+  });
+
+  let stderr = "";
+  proc.stderr.on('data', (chunk) => {
+    if (stderr.length < MAX_STDERR_LEN) {
+      stderr += chunk;
+    }
+  });
+
+  proc.on('exit', (exitCode) => {
+    if (exitCode !== 0) {
+      const timestamp = new Date().toISOString();
+      console.log(`${timestamp}\t${ctx.gruParams._requestId}\terror\t${ctx.url}`);
+      console.log("stderr:");
+      console.log(stderr);
+      console.log("params:");
+      console.log(ctx.gruParams);
+
+      if (ctx.gruParams._appendErrors === true) {
+        out.write("GRU_ERROR_SENTINEL");
+      }
+    }
+
+    out.end();
+  });
 }
 
 function genContigFileStr(refNames) {
@@ -541,9 +600,47 @@ else {
   });
 }
 
+async function logger(ctx, next) {
+  const contentType = ctx.get('content-type').split(';')[0];
+
+  if (ctx.method !== 'POST' || contentType != 'text/plain') {
+    await next();
+    return;
+  }
+
+  const params = JSON.parse(ctx.request.body);
+
+  ctx.gruParams = params;
+
+  let timestamp = new Date().toISOString();
+  const start = Date.now();
+  console.log(`${timestamp}\t${params._requestId}\tstart\t${ctx.url}\t${params._attemptNum}`);
+
+  await next();
+
+  // Modifed from https://github.com/koajs/logger/blob/f8edfa00cb5af7e696cf276ddc8b482accd9f7a9/index.js#L76
+  const { res } = ctx;
+
+  const onFinish = done.bind(null, 'finish');
+  const onClose = done.bind(null, 'close');
+
+  res.once('finish', onFinish);
+  res.once('close', onClose);
+
+  function done(evt) {
+    res.removeListener('finish', onFinish);
+    res.removeListener('close', onClose);
+
+    const message = evt === 'finish' ? 'finish' : 'canceled';
+
+    timestamp = new Date().toISOString();
+    const seconds = (Date.now() - start) / 1000;
+    console.log(`${timestamp}\t${params._requestId}\t${message}\t${ctx.url}\t${seconds} seconds`);
+  }
+}
+
 const server = new Koa();
 server
-  .use(logger())
   .use(cors({
     origin: '*',
     maxAge: 86400,
@@ -553,6 +650,7 @@ server
     jsonLimit: '10mb',
     textLimit: '10mb',
   }))
+  .use(logger)
   .use(rootRouter.routes())
   .use(rootRouter.allowedMethods())
   .listen(port);
