@@ -28,7 +28,7 @@
         {
           "device_name": "/dev/sda2",
           "volume_type": "gp2",
-          "snapshot_id": "snap-0cb072291ae8dedd8",
+          "snapshot_id": "snap-0a9cf39a78746b9c0",
           "delete_on_termination": true
         }
       ]
