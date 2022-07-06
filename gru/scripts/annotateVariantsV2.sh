@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 vcfUrl=$1
 tbiUrl=$2
@@ -45,7 +46,7 @@ if [ "$decompose" == "true" ]; then
 fi
 
 if [ "$gnomadMergeAnnots" ]; then
-    
+   	
     if [ "$genomeBuildName" == "GRCh38" ]; then
         toml="/data/gnomad/vcfanno_gnomad_3.1_grch38.toml"
     else
