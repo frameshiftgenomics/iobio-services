@@ -72,7 +72,7 @@ chmod 600 letsencrypt/acme.json
 
 ### Verify sqlite cache volume is populated
 
-The sqlite cache is available as an EBS snapshot. As of 9/7/21, the snapshot ID is `snap-0cb072291ae8dedd8`.
+The sqlite cache is available as an EBS snapshot. As of 7/5/22, the snapshot ID is `snap-0a9cf39a78746b9c0`.
 
 1. Create a new EBS volume from the snapshot above
 1. Attach the volume to the EC2 instance via the AWS console
@@ -87,17 +87,38 @@ sudo mount /dev/xvdf sqlite/
 [https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html)
 
 ```
-sqlite/data/
+sqlite/
+├── CHANGELOG.md
 ├── data
-├── gene2pheno
-├── geneinfo
-├── genomebuild
-├── gnomad_header.txt
-├── hpo
-├── lost+found
-├── md5_reference_cache
-├── references
-└── vep-cache
+│   ├── data
+│   ├── gene2pheno
+│   ├── geneinfo
+│   ├── genomebuild
+│   ├── gnomad
+│   ├── gnomad_header.txt
+│   ├── hpo
+│   ├── lost+found
+│   ├── md5_reference_cache
+│   ├── references
+│   └── vep-cache
+└── gru.sif
+```
+
+### Final Directory Structure
+
+The final directory structure should look like this:
+
+```
+├── LICENSE
+├── Makefile
+├── README.md
+├── docker
+├── docker-compose.yml
+├── docs
+├── gene
+├── gru
+├── letsencrypt
+└── sqlite
 ```
 
 ### Launch stacks
