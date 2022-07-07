@@ -31,7 +31,7 @@ services:
     networks:
       - proxy
     volumes:
-        - ../sqlite/data:/iobio-gru-backend/data
+        - ../sqlite/data:/data
     deploy:
       replicas: 2
       labels:
