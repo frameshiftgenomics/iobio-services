@@ -7,11 +7,11 @@
 #
 # See additional notes at end of file.
 
-version: "3.8"
+version: "3.9"
 
 services:
   traefik:
-    image: traefik:v2.5.2
+    image: traefik:v2.8.1
     networks:
       - proxy
     command:
@@ -51,12 +51,12 @@ services:
       labels:
         - "traefik.enable=true"
         # Dashboard
-        - "traefik.http.routers.traefik.rule=Host(`traefik.frameshift.io`)"
+        - "traefik.http.routers.traefik.rule=Host(`udn.traefik.frameshift.io`)"
         - "traefik.http.routers.traefik.service=api@internal"
         - "traefik.http.routers.traefik.tls.certresolver=leresolver"
         - "traefik.http.routers.traefik.entrypoints=websecure"
         - "traefik.http.routers.traefik.middlewares=authtraefik"
-        - "traefik.http.middlewares.authtraefik.basicauth.users=user:$$apr1$$q8eZFHjF$$Fvmkk//V6Btlaf2i/ju5n/" # user/password
+        - "traefik.http.middlewares.authtraefik.basicauth.users=udn-user:$$apr1$$mZmd9NHf$$L2JFeJtpsY5vbClDfZZz.1" # user/password
         - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
         # Global redirect to https
