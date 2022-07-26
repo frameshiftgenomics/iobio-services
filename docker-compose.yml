@@ -4,12 +4,12 @@
 # - gene.iobio client app
 # - gru.iobio api
 
-version: "3.8"
+version: "3.9"
 
 services:
 
   traefik:
-    image: traefik:v2.5.2
+    image: traefik:v2.8.1
     command:
       # - --api.debug=true
       # - --log.level=ERROR

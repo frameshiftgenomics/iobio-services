@@ -16,4 +16,4 @@ npm-debug.log*
 letsencrypt
 
 # Data directory for gru SQLite database
-sqlite/data
+sqlite

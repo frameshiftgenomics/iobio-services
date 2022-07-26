@@ -8,7 +8,7 @@
 # 1. Launch the traefik stack
 # 2. Replace all instances of example frameshift domains (iobio.frameshift.io)
 
-version: "3.8"
+version: "3.9"
 
 services:
 
