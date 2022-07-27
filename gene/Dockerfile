@@ -1,4 +1,4 @@
-FROM node:18-bullseye-slim as builder
+FROM node:14-bullseye-slim as builder
 
 # Source code is in /app
 WORKDIR /app
