@@ -54,18 +54,18 @@ echo \
 sudo apt-get update
 sudo apt-get install -y docker-ce
 
-# Add your user to the docker group
+# Add your user to the docker group (requires logout to take effect)
 sudo groupadd docker
 sudo usermod -aG docker ubuntu
 ```
 
-### Configure Docker to use external DNS server
+### Configure Docker to use external DNS server (if needed)
 
 Edit `/etc/docker/daemon.json`
 
 ```json
 {
-    "dns": ["10.1.2.3", "8.8.8.8"]
+  "dns": ["8.8.8.8"]
 }
 ```
 
