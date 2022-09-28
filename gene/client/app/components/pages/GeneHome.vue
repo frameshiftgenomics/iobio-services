@@ -8,7 +8,7 @@
 
 
 .v-snack--top
-  top: 60px !important
+  top: 80px !important
 
 
 .fluidMax
@@ -282,6 +282,7 @@ main.content.clin, main.v-content.clin
       @apply-variant-notes="onApplyVariantNotes"
       @apply-variant-interpretation="onApplyVariantInterpretation"
       @on-files-loaded="onFilesLoaded"
+      @on-close-files-dialog="onCloseFilesDialog"
       @on-left-drawer="onLeftDrawer"
       @show-snackbar="onShowSnackbar"
       @hide-snackbar="onHideSnackbar"
@@ -864,6 +865,7 @@ export default {
     paramUnaffectedSibs:   null,
 
     paramRelationships:    null,
+    paramSexes:            null,
     paramSamples:          null,
     paramNames:            null,
     paramBams:             null,
@@ -1142,7 +1144,7 @@ export default {
 
     showGeneVariantsCard: function() {
 
-        return this.selectedGene && Object.keys(this.selectedGene).length > 0 && !this.isEduMode && (this.cohortModel.isLoaded || !(Array.isArray(this.models) && this.models.length > 1)) && !this.showWelcome
+        return this.selectedGene && Object.keys(this.selectedGene).length > 0 && !this.isEduMode  && !this.showWelcome
 
     },
 
@@ -1151,7 +1153,8 @@ export default {
       let theModels = [];
       if (this.models && this.models.length > 0) {
         theModels = self.models.filter(function(model) {
-          return model.relationship === 'proband';
+          return model.relationship === 'proband' && 
+                 (model.isLoaded() || model.isBamReadyToLoad());
         })
       }
       if (theModels.length > 0) {
@@ -1613,6 +1616,9 @@ export default {
             self.promiseLoadData();
           }
         });
+        self.cacheHelper.on("geneNotAnalyzed", function(geneName) {
+          console.log("Gene not analyzed " + geneName)
+        });
         self.cacheHelper.on("analyzeAllCompleted", function() {
           self.delaySave = 1000;
           if (!self.isEduMode) {
@@ -1674,6 +1680,7 @@ export default {
         if (self.isEduMode) {
           resolve();
         } else {
+          self.geneModel.clearGeneToLatestTranscript()
           self.geneModel.clearDangerSummaries();
           self.refreshCoverageCounts();
           self.cacheHelper.promiseClearCache(self.cacheHelper.launchTimestampToClear)
@@ -1767,8 +1774,7 @@ export default {
                             self.analyzedTranscript = data.transcript;
 
                             if(self.analyzedTranscript.gene_name !== self.selectedGene.gene_name){
-                              self.geneModel.removeGene(self.selectedGene.gene_name);
-                              self.onShowSnackbar({message: 'Bypassing ' + self.selectedGene.gene_name + '. Unable to find transcripts.', timeout: 5000})
+                              console.log("Unexpected error: the analyzed transcript is for gene " + self.analyzedTranscript.gene_name + " but the selected gene is " + self.selectedGene.gene_name)
                             }
                             resolve();
                         })
@@ -1776,10 +1782,15 @@ export default {
                     self.refreshCoverageCounts()
                 })
                 .catch(function(error) {
+                    self.cohortModel.promiseMarkCodingRegions(self.selectedGene, self.selectedTranscript)
+                        .then(function(data) {
+                            self.analyzedTranscript = data.transcript;
+                        })
+
                     reject(error);
                 })
         } else {
-          Promise.resolve();
+          return self.promiseClearCache();
         }
 
       })
@@ -1800,6 +1811,10 @@ export default {
         })
 
       }
+    },
+
+    onCloseFilesDialog: function() {
+      let self = this;
     },
 
     onFilesLoaded: function(analyzeAll, callback) {
@@ -1880,6 +1895,7 @@ export default {
       var i = 0;
       self.cohortModel.getCanonicalModels().forEach(function(model) {
         queryObject['rel'+i]    = model.relationship;
+        queryObject['sex'+i]    = model.sex;
         queryObject['vcf'+i]    = model.vcf && model.vcf.getVcfURL() ? model.vcf.getVcfURL() : "";
         queryObject['tbi'+i]    = model.vcf && model.vcf.getTbiURL() ? model.vcf.getTbiURL() : "";
         queryObject['bam'+i]    = model.bam && model.bam.bamUri ? model.bam.bamUri : "";
@@ -1940,7 +1956,9 @@ export default {
       .then(function() {
         if(self.launchedFromFiles) {
           self.showLeftPanelForGenes();
-          self.promiseSelectFirstFlaggedVariant();
+          if (self.cohortModel.isLoaded) {
+            self.promiseSelectFirstFlaggedVariant();
+          }
 
         }
         self.onSendGenesToClin();
@@ -2142,8 +2160,7 @@ export default {
         })
         .catch(function(error) {
           console.log(error);
-          self.geneModel.removeGene(geneName);
-          self.onShowSnackbar({message: 'Bypassing ' + geneName + '. Unable to find transcripts.', timeout: 5000})
+          self.onShowSnackbar({message: 'Unable to fetch transcripts for ' + geneName, timeout: 5000})
         })
       })
     },
@@ -2551,9 +2568,12 @@ export default {
     onGenesReplaced: function(oldGeneNames, newGeneNames) {
       let self = this;
 
-      var removedGeneNames = oldGeneNames.filter(function(geneName) {
+      // The genes to remove are those in the old list and not in the
+      // new list of genes
+      let removedGeneNames = oldGeneNames.filter(function(geneName) {
         return newGeneNames.indexOf(geneName) === -1;
       })
+
 
       removedGeneNames.forEach(function(geneName) {
         self.cohortModel.removeFlaggedVariantsForGene(geneName);
@@ -2719,8 +2739,25 @@ export default {
 
       })
       .then(function() {
-        if (self.geneModel.sortedGeneNames && self.geneModel.sortedGeneNames.length > 0) {
+        if (self.geneModel.sortedGeneNames) {
           if (self.cohortModel && self.cohortModel.isLoaded && !self.isEduMode) {
+            // If all of the genes were removed, prompt the user to enter a 
+            // gene or a phenotype term
+            setTimeout( function() {
+              if (self.geneModel.sortedGeneNames.length == 0) {
+                if (self.$refs.navRef && self.$refs.navRef.$refs.flaggedVariantsRef) {
+                  self.$refs.navRef.geneCount = 0
+                  self.$refs.navRef.badgeCounts.coverage = 0
+                  
+                }
+                if (!self.isEduMode) {
+                  let theMessage = self.isSimpleMode || self.isBasicMode ? 'Enter a gene name.' : 'Enter a gene name or enter a phenotype term.'
+                  self.onShowSnackbar( {message: theMessage, timeout: 10000, close:true});
+                  self.bringAttention = 'gene';
+                }
+
+              }
+            }, 1000)
             self.showLeftPanelForGenes();
             self.cacheHelper.analyzeAll(self.cohortModel, false);
             if (callback) {
@@ -2728,6 +2765,7 @@ export default {
             }
           }
         }
+        
       })
 
     },
@@ -2852,6 +2890,7 @@ export default {
           if (rel) {
             var modelInfo            = {'relationship': rel};
             modelInfo.name           = self.paramNames[i];
+            modelInfo.sex            = self.paramSexes[i];
             modelInfo.vcf            = self.paramVcfs[i];
             modelInfo.tbi            = self.paramTbis[i];
             modelInfo.bam            = self.paramBams[i];
@@ -3375,15 +3414,18 @@ export default {
       this.featureMatrixModel.isBasicMode = false;
       this.featureMatrixModel.isSimpleMode = false;
       this.filterModel.isBasicMode = false;
-      this.calcFeatureMatrixWidthPercent();
-      this.onFilesLoaded(true, function() {
-        let options = { name: 'home', query: { mode: 'advanced'}};
-        if (self.forMyGene2) {
-          options.query.mygene2 = true;
-        }
-       
-        self.$router.push(options)
-      });
+      this.promiseClearCache()
+      .then(function() {
+        self.calcFeatureMatrixWidthPercent();
+        self.onFilesLoaded(true, function() {
+          let options = { name: 'home', query: { mode: 'advanced'}};
+          if (self.forMyGene2) {
+            options.query.mygene2 = true;
+          }
+         
+          self.$router.push(options)
+        });
+      })
     },
     onBasicMode: function() {
       let self = this;
@@ -3401,10 +3443,13 @@ export default {
       this.featureMatrixModel.isBasicMode = false;
       this.featureMatrixModel.isSimpleMode = true;
       this.filterModel.isBasicMode = false;
-      this.calcFeatureMatrixWidthPercent();
-      this.onFilesLoaded(true, function() {
-        self.$router.push( { name: 'home', query: {mode: 'basic', mygene2: self.forMyGene2 } })
-      });
+      this.promiseClearCache()
+      .then(function() {
+        self.calcFeatureMatrixWidthPercent();
+        self.onFilesLoaded(true, function() {
+          self.$router.push( { name: 'home', query: {mode: 'basic', mygene2: self.forMyGene2 } })
+        });
+      })
     },
     onStopAnalysis: function() {
       this.cohortModel.stopAnalysis();

@@ -147,8 +147,8 @@
                   Load
                 </v-btn>
 
-                <v-btn class="cancer-button action-button" @click="onCancel">
-                 Cancel
+                <v-btn class="cancer-button action-button" @click="onClose">
+                 Close
                </v-btn>
               </v-flex>
             </v-layout>
@@ -521,9 +521,9 @@ export default {
       }
       return self.cohortModel.promiseSetSibs(affectedSibList, unaffectedSibList)
     },
-    onCancel:  function() {
+    onClose:  function() {
       let self = this;
-      self.$emit("on-cancel");
+      self.$emit("on-close");
       self.showFilesDialog = false;
     },
     onModeChanged: function() {
@@ -571,6 +571,7 @@ export default {
         var theModelInfo = self.modelInfoMap[theModel.relationship];
         theModelInfo.model = theModel;
         theModel.onVcfUrlEntered(theModelInfo.vcf, null, function(success, sampleNames) {
+          self.validate();
           if (success) {
             theModelInfo.samples = sampleNames;
             if (theModel.relationship == 'proband') {
@@ -602,29 +603,49 @@ export default {
     },
     validate: function() {
       this.isValid = false;
+      this.cohortModel.isLoaded = false;
       if (this.mode == 'single') {
         if (this.modelInfoMap.proband && this.modelInfoMap.proband.model.isReadyToLoad()) {
           this.isValid = true;
+          this.cohortModel.isLoaded = true;
         }
       } else {
         if (this.modelInfoMap.proband && this.modelInfoMap.proband.model && this.modelInfoMap.proband.model.isReadyToLoad()
             && this.modelInfoMap.mother && this.modelInfoMap.mother.model && this.modelInfoMap.mother.model.isReadyToLoad()
             && this.modelInfoMap.father && this.modelInfoMap.father.model && this.modelInfoMap.father.model.isReadyToLoad()) {
           this.isValid = true;
+          this.cohortModel.isLoaded = true;
         }
       }
     },
     onSamplesAvailable: function(relationship, samples) {
+      let self = this;
       if (relationship == 'proband') {
-        this.possibleSibs = samples;
+        this.possibleSibs = samples.map(function(sample) {
+          return {'sample': sample, 'sex': 'unknown'}
+        })
+        this.cohortModel.sampleMapSibs.affected.forEach(function(sampleModel) {
+          self.possibleSibs.forEach(function(possibleSib) {
+            if (possibleSib.sample == sampleModel.sampleName) {
+              possibleSib.sex = sampleModel.sex
+            }
+          })
+        })
+        this.cohortModel.sampleMapSibs.unaffected.forEach(function(sampleModel) {
+          self.possibleSibs.forEach(function(possibleSib) {
+            if (possibleSib.sample == sampleModel.sampleName) {
+              possibleSib.sex = sampleModel.sex
+            }
+          })
+        })
         if (this.cohortModel.sampleMapSibs.affected && this.cohortModel.sampleMapSibs.affected.length > 0) {
           this.affectedSibs = this.cohortModel.sampleMapSibs.affected.map(function(sampleModel) {
-             return {sample: sampleModel.sampleName, sex: sampleModel.sex}
+             return sampleModel.sampleName;
           })
         }
         if (this.cohortModel.sampleMapSibs.unaffected && this.cohortModel.sampleMapSibs.unaffected.length > 0) {
           this.unaffectedSibs = this.cohortModel.sampleMapSibs.unaffected.map(function(sampleModel) {
-             return {sample: sampleModel.sampleName, sex: sampleModel.sex}
+             return sampleModel.sampleName;
           })
         }
       }
@@ -644,6 +665,7 @@ export default {
     },
     init: function() {
       let self = this;
+      self.buildName = self.cohortModel.genomeBuildHelper.getCurrentBuildName()
       self.modelInfoMap = {};
       if (self.cohortModel && self.cohortModel.getCanonicalModels().length > 0) {
         self.initModelInfo();
