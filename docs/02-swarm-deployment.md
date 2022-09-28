@@ -84,6 +84,14 @@ docker swarm init
 docker info
 ```
 
+### Clone repo (checkout appropriate branch if needed)
+
+```bash
+git clone https://github.com/frameshiftgenomics/iobio-services.git
+
+cd iobio-services
+```
+
 ### Create file to hold TLS certs
 
 ```bash
