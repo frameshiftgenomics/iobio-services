@@ -9,16 +9,21 @@ export default class EndpointCmd {
     this.getHumanRefNames  = getHumanRefNamesFunc;
     this.helpMsg = "If this error persists, Please email <a href='mailto:iobioproject@gmail.com'>iobioproject@gmail.com</a> for help resolving this issue.";
 
+    // TODO: Should be able to use this.globalApp.IOBIO_SERVICES for new Client(),
+    // but the trailing '/' breaks the requests. Probably need to update
+    // iobio-api-client to handle that case.
+    const httpScheme = this.globalApp.useSSL ? 'https://' : 'http://';
+
     if (this.globalApp.launchedFromUtahMosaic) {
-      this.api = new Client(process.env.IOBIO_BACKEND_MOSAIC, { secure: this.globalApp.useSSL });
+      this.api = new Client(httpScheme + process.env.IOBIO_BACKEND_MOSAIC);
     }
     else {
       // NOTE:  to point to a different (for example, a dev.backend.iobio.io:9001),
       // don't change it here.  Edit the .env file, setting IOBIO_BACKEND to
       // the dev server.
-      //this.api = new Client('mosaic.chpc.utah.edu/gru-dev-9003', { secure: this.globalApp.useSSL });
+      //this.api = new Client( 'https://mosaic.chpc.utah.edu/gru-dev-9002');
 
-      this.api = new Client(process.env.IOBIO_BACKEND, { secure: this.globalApp.useSSL });
+      this.api = new Client(httpScheme + process.env.IOBIO_BACKEND);
     }
 
     // iobio services
@@ -374,7 +379,7 @@ export default class EndpointCmd {
 
             }
 
-            let cmd = this.api.streamCommand('freebayesJointCall', {
+            let cmd = this.api.streamCommand('freebayesJointCallV2', {
                 alignmentSources: bamSources,
                 refFastaFile,
                 region: {
@@ -390,8 +395,6 @@ export default class EndpointCmd {
                 isRefSeq,
                 clinvarUrl,
                 sampleNames,
-                gnomadUrl: gnomadUrl ? gnomadUrl : '',
-                gnomadRegionStr: gnomadRegionStr ? gnomadRegionStr : '',
                 decompose
             });
 

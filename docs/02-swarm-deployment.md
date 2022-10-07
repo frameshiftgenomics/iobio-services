@@ -40,16 +40,38 @@ Customize the infrasturcture to your liking.
 ### Install docker
 
 ```bash
-# install docker & make
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-apt-get update
-apt-cache policy docker-ce
-apt-get install -y docker-ce
-apt-get install make
+# Install docker-ce & make
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg lsb-release make
 
-# add ubuntu user to docker group
-usermod -aG docker ubuntu
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update
+sudo apt-get install -y docker-ce
+
+# Add your user to the docker group (requires logout to take effect)
+sudo groupadd docker
+sudo usermod -aG docker ubuntu
+```
+
+### Configure Docker to use external DNS server (if needed)
+
+Edit `/etc/docker/daemon.json`
+
+```json
+{
+  "dns": ["8.8.8.8"]
+}
+```
+
+```bash
+# Restart docker service
+sudo systemctl restart docker
 ```
 
 ### Initialize Docker swarm
@@ -62,6 +84,14 @@ docker swarm init
 docker info
 ```
 
+### Clone repo (checkout appropriate branch if needed)
+
+```bash
+git clone https://github.com/frameshiftgenomics/iobio-services.git
+
+cd iobio-services
+```
+
 ### Create file to hold TLS certs
 
 ```bash
@@ -72,7 +102,7 @@ chmod 600 letsencrypt/acme.json
 
 ### Verify sqlite cache volume is populated
 
-The sqlite cache is available as an EBS snapshot. As of 7/5/22, the snapshot ID is `snap-0a9cf39a78746b9c0`.
+The sqlite cache is available as an EBS snapshot. As of 9/28/22, the snapshot ID is `snap-02daf042b5d9c7498`.
 
 1. Create a new EBS volume from the snapshot above
 1. Attach the volume to the EC2 instance via the AWS console

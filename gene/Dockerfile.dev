@@ -1,5 +1,4 @@
-# Node 12 LTS image
-FROM node:12
+FROM node:14-bullseye-slim
 
 # Install Chrome to run client tests
 RUN echo 'deb http://dl.google.com/linux/chrome/deb/ stable main' > /etc/apt/sources.list.d/chrome.list
