@@ -1,6 +1,9 @@
 #!/bin/bash
 
-#set -x
+# TODO: Figure out why we can't use pipefail. Apparently some stage of the
+# pipeline is failing even though valid data is getting output.
+#set -euo pipefail
+set -e
 
 alignmentUrls=$1
 alignmentIndices=$2
@@ -19,10 +22,6 @@ decompose=${14}
 contigStr=${15}
 dataDir=${16}
 
-runDir=$PWD
-tempDir=$(mktemp -d)
-cd $tempDir
-
 contigFile="contig.txt"
 echo -e "$contigStr" > $contigFile
 
@@ -40,12 +39,12 @@ read -ra indices <<< "$alignmentIndices"
 for i in "${!urls[@]}"; do
     url=${urls[$i]}
     indexUrl=${indices[$i]}
-    alignmentFile=$(mktemp)
+    alignmentFile=$(mktemp --tmpdir=./)
 
     if [ -n "${indexUrl}" ]; then
-        samtools-1.11 view -b -X $url $indexUrl $region > $alignmentFile &
+        samtools view -b -X $url $indexUrl $region > $alignmentFile &
     else
-        samtools-1.11 view -b $url $region > $alignmentFile &
+        samtools view -b $url $region > $alignmentFile &
     fi
 
     freebayesArgs="$freebayesArgs -b $alignmentFile"
@@ -92,7 +91,7 @@ if [ "$vepREVELFile" ]; then
 fi
 
 if [ "$vepAF" == "true" ]; then
-    vepArgs="$vepArgs --af --af_gnomad --af_esp --af_1kg --max_af"
+    vepArgs="$vepArgs --af --af_gnomad --af_1kg --max_af"
 fi
 
 wait
@@ -107,7 +106,3 @@ freebayes -f $refFastaFile $freebayesArgs | \
     bcftools annotate -h $contigFile | \
     vep $vepArgs | \
     $gnomadAnnotStage
-
-
-rm -rf $tempDir
-cd $runDir
