@@ -208,8 +208,8 @@ class FilterModel {
           // TODO - figure out how to show when variants no longer match filters
           active: false,
           custom: false,
-          title: "Filtered variants",
-          name: "Variants found during full analysis, but not passing any app filters",
+          title: "Imported variants not passing above filters",
+          name: "Imported variant that don't pass any gene.iobio filters",
           order: 8,
           userFlagged: false,
           maxAf: null,
@@ -227,8 +227,8 @@ class FilterModel {
           // TODO - figure out how to show when variants no longer match filters
           active: false,
           custom: false,
-          title: "Not found",
-          name: "Variants not found",
+          title: "Imported variants not found in variant file",
+          name: "Imported variants that not found in the proband variant file",
           order: 9,
           userFlagged: false,
           maxAf: null,
@@ -456,7 +456,13 @@ class FilterModel {
     }
 
     let sortedFilters = filters.sort(function(filterObject1, filterObject2) {
-      return filterObject1.order > filterObject2.order;
+      if (+filterObject1.order < +filterObject2.order) {
+        return -1;
+      } else if (+filterObject1.order > +filterObject2.order) {
+        return 1;
+      } else {
+        return 0;
+      }
     })
 
     return sortedFilters;
@@ -678,9 +684,9 @@ class FilterModel {
 
   whichLowCoverage(gc) {
     var fields = {};
-    fields.min    = +gc.min    < this.geneCoverageMin    ? '< ' + this.geneCoverageMin : null;
-    fields.median = +gc.median < this.geneCoverageMedian ? '< ' + this.geneCoverageMedian : null;
-    fields.mean   = +gc.mean   < this.geneCoverageMean   ? '< ' + this.geneCoverageMean : null;
+    fields.min    = +gc.min    < this.geneCoverageMin    ? '' + this.geneCoverageMin : null;
+    fields.median = +gc.median < this.geneCoverageMedian ? '' + this.geneCoverageMedian : null;
+    fields.mean   = +gc.mean   < this.geneCoverageMean   ? '' + this.geneCoverageMean : null;
     return fields;
   }
 
@@ -750,7 +756,7 @@ class FilterModel {
 
   flagVariants(theVcfData) {
     let self = this;
-    var badges = {};
+    var badges = {}
     for (var key in this.flagCriteria) {
       if (this.flagCriteria[key].active) {
         badges[key] = [];
@@ -768,7 +774,6 @@ class FilterModel {
 
     }
     return badges;
-
   }
 
   flagImportedVariants(importedVariants) {
@@ -801,6 +806,9 @@ class FilterModel {
 
     if (variant.notFound) {
       badgePassState['notFound'] = true;
+      if (badges["notFound"] == null) {
+        badges["notFound"] = [];
+      }
     } else if (variant.isUserFlagged) {
       badgePassState['userFlagged'] = true;
     } else {
@@ -857,6 +865,22 @@ class FilterModel {
       variant.featureClass = 'flagged';
       variant.filtersPassed = filtersPassed;
       variant.filtersPassedAll = filtersPassedAll;
+    } else if (variant.notFound) {
+      variant.isFlagged = true;
+      variant.isUserFlagged = false;
+      variant.notCategorized = false;
+      variant.featureClass = 'flagged';
+      self.mapGenomeWideFilter(variant);
+      if (badges["notFound"] == null) {
+        badges["notFound"] = [];
+      }
+      badges["notFound"].push($.extend({}, variant))
+      // Activate the notFound filter so it shows in the flagged 
+      // variants panel
+      if (self.flagCriteria['notFound'].active == false) {
+        self.flagCriteria['notFound'].active = true;
+      }
+
     } else if (variant.isImported) {
       variant.isFlagged = true;
       variant.isUserFlagged = false;
@@ -866,7 +890,12 @@ class FilterModel {
       if (badges["notCategorized"] == null) {
         badges["notCategorized"] = [];
       }
-      badges["notCategorized"].push(variant)
+      badges["notCategorized"].push($.extend({}, variant))
+      // Activate the 'notCategorized' filter so it shows in the flagged 
+      // variants panel
+      if (self.flagCriteria['notCategorized'].active == false) {
+        self.flagCriteria['notCategorized'].active = true;
+      }
     }
 
     if (variant.isFlagged) {
@@ -890,11 +919,17 @@ class FilterModel {
       let filter = self.flagCriteria[variant.variantSet];
       if (filter) {
         variant.filtersPassed = variant.variantSet;
+      } else if (variant.notFound) {
+        variant.filtersPassed = 'notFound';
       } else {
         variant.filtersPassed = 'notCategorized';
       }
     } else {
-      variant.filtersPassed = "notCategorized";
+      if (variant.notFound) {
+        variant.filtersPassed = 'notFound'
+      } else {
+        variant.filtersPassed = "notCategorized";
+      }
     }
   }
 
