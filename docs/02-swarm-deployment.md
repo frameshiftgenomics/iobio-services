@@ -119,19 +119,18 @@ sudo mount /dev/xvdf sqlite/
 ```
 sqlite/
 ├── CHANGELOG.md
-├── gru_data
-│   ├── data
-│   ├── gene2pheno
-│   ├── geneinfo
-│   ├── genomebuild
-│   ├── gnomad
-│   ├── gnomad_header.txt
-│   ├── hpo
-│   ├── lost+found
-│   ├── md5_reference_cache
-│   ├── references
-│   └── vep-cache
-└── gru.sif
+├── VERSION
+├── data
+├── gene2pheno
+├── geneinfo
+├── genomebuild
+├── gnomad
+├── gnomad_header.txt
+├── hpo
+├── lost+found
+├── md5_reference_cache
+├── references
+└── vep-cache
 ```
 
 ### Final Directory Structure
