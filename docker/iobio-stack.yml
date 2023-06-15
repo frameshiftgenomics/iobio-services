@@ -31,7 +31,7 @@ services:
     networks:
       - proxy
     volumes:
-        - ../sqlite/gru_data:/gru_data
+      - ../sqlite:/gru_data
     deploy:
       replicas: 2
       labels:
