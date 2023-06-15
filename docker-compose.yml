@@ -31,7 +31,7 @@ services:
       - /iobio-gru-backend/tool_bin
       - /iobio-gru-backend/static
       - ./gru:/iobio-gru-backend
-      - ./sqlite/data:/iobio-gru-backend/data:ro
+      - ./sqlite/gru_data:/iobio-gru-backend/gru_data:ro
     labels:
       - "traefik.http.routers.gru.rule=Host(`gru.localhost`)"
       - "traefik.http.services.gru.loadbalancer.server.port=9001"
