@@ -1,5 +1,77 @@
 <style lang="sass" >
 @import ../../../assets/sass/variables
+#pedigree-genotype-popup
+  display: flex
+  flex-direction: column
+  justify-content: center
+  align-items: center
+  position: absolute
+  background-color: white
+  padding: 1em
+  z-index: 100
+  top: 50%
+  left: 50%
+  width: 80%
+  height: 90%
+  max-width: 1000px
+  transform: translate(-50%, -50%)
+  border: 1px solid #c5c5c5 !important
+  box-shadow: 0 3px 1px -2px rgba(0,0,0,.2), 0 2px 2px 0 rgba(0,0,0,.14), 0 1px 5px 0 rgba(0,0,0,.12) !important
+
+
+  .variant-column-header
+    width: 100%
+    text-align: center
+    padding: 1px
+    height: 10%
+
+  .variant-column-header hr
+    margin-top: 0px
+    margin-bottom: 0px
+    height: 1px
+
+  .popup-pedigree-chart
+    width: 100%
+    height: 80%
+    max-width: 800px
+    display: flex
+    flex-direction: column
+    justify-content: center
+    align-items: center
+    .pedigree-genotype-chart
+      width: 100%
+      .allele-count-bar
+        text
+          font-size: 15px
+    
+  div .variant-row
+    display: flex
+    flex-direction: row
+    margin-top: 5px
+    margin-bottom: 5px
+
+.pedigree-popup-hidden
+  visibility: hidden
+
+.pedigree-popup-show
+  visibility: visible
+.popup-variant-header
+  display: flex
+  flex-direction: row
+  justify-content: center
+  position: relative
+  #close-pedigree-genotype-popup
+    margin-left: auto
+    height: 5%
+    z-index: 1
+    right: 0px
+    top: -5px
+    position: absolute
+  *:first-child
+    flex: 1
+    text-align: center
+    margin: 0px 0px 0px 0px
+
 #variant-inspect
   padding-left: 10px
   padding-top: 10px
@@ -9,9 +81,6 @@
 
   .multialign-loader
     font-size: 12px
-
-
-
 
   .refalt
     max-width: 200px
@@ -74,23 +143,27 @@
     .input-group__details:after
       background-color: $text-color
 
-
-
-
   .variant-inspect-body
     display: flex
     flex-direction: row
     flex-wrap: wrap
-    justify-content: space-around
+    justify-content: space-between
     padding-top: 10px
 
-
+    #hpo-term-table 
+      .hpo-row
+        .hpo-launch
+          min-width: 80px 
+          max-width: 80px
+        .hpo-name 
+          min-width: 100px
+          max-width: 100px
+        .match-chip
+          margin-right: 5px
 
     #conservation-track
       .variant-text
         max-width: 120px
-
-
 
     .variant-inspect-column
       display: flex
@@ -103,6 +176,29 @@
       margin-right: 15px
       padding-top: 0px
       padding-bottom: 0px
+      #expand-popup-button
+        font-weight: 500
+        color: #30638e
+        display: flex
+        flex-direction: row
+        align-items: center
+        justify-content: center
+        i
+          margin: 3px 2px 1px 3px
+        p
+          margin: 3px 3px 1px 1px
+          
+      #qual-track
+        display: flex
+        flex-direction: column
+        align-items: center
+        justify-content: center
+        .variant-row
+          display: flex
+          flex-direction: row
+          align-items: center
+          justify-content: center
+
 
 
       &.last
@@ -150,15 +246,18 @@
           margin-bottom: 0px
 
       .pheno-search-term
-        max-width: 100px
+        max-width: 130px
         display: inline-block
         vertical-align: top
-        line-height: 14px
+        line-height: 13px
         overflow-wrap: break-word
+        font-size: 12px
+        font-weight: 400
 
       #qual-track
         margin-top: 0px
         #depth-viz
+          margin-left: 3px
           .circle-label
             font-size: 13px !important
 
@@ -184,7 +283,8 @@
               outline: none !important
 
   .rel-header
-    font-style: italic
+    font-weight: 600
+    padding-right: 4px
 
   .variant-header
     color: $app-color
@@ -201,20 +301,12 @@
 
 
   .variant-action-button
-      padding: 0px
-      height: 22px !important
-      margin: 0px
       min-width: 110px !important
-      max-width: 110px
       font-weight: 500
+      font-size: 13px
       color: $link-color
-
       .btn__content, .v-btn__content
         color: $link-color !important
-        padding-left: 8px
-        padding-right: 8px
-        font-size: 12px
-
         i.material-icons
           color: $link-color !important
 
@@ -315,6 +407,29 @@
         font-size: 9px
         text-anchor: middle
 
+  .gene-ranks
+    display: flex 
+    align-items: center
+    .v-chip.search-hit
+      margin-top: 0px !important
+      margin-bottom: 2px !important
+      margin-left: 0px !important
+      margin-right: 4px !important
+      background-color:  white !important
+      color: $high-impact-color !important
+      border-color: $high-impact-color !important
+      border-style: solid !important
+
+      .v-chip__content
+        padding: 0px !important
+        padding-left: 2px !important
+        padding-right: 2px !important
+        height: 18px !important
+        justify-content: center !important
+        font-size:  11px !important
+        color:  $high-impact-color !important
+        font-weight: 500 !important
+
 #show-more-gene-association-button
   margin: 0px 0px 0px 0px
   font-size: 13px
@@ -322,7 +437,7 @@
   margin-bottom: 0px
   padding-left: 0px
   padding-right: 4px
-  float: right
+  float: left
   margin-right: 10px
 
   .btn__content, .v-btn__content
@@ -333,7 +448,7 @@
 
     i.material-icons
       color: $link-color
-      font-size: 17px
+      font-size: 15px
       padding-right: 5px
 
 #source-indicator-text
@@ -354,27 +469,112 @@
   display: inline-block
   font-size: 11px
   font-family: raleway
+
+
+.select-annotations-button
+  min-width: 70px !important
+  font-weight: 500
+  font-size: 13px
+  color: $link-color
+  padding: 0px
+  margin-top: 2px 
+  margin-bottom: 2px 
+  margin-left: 10px 
+  height: 22px 
+  .btn__content, .v-btn__content
+    color: $link-color !important
+    margin: 0px
+    i.material-icons
+      color: $link-color !important
+    
+
+.value-rows
+  display: flex
+  flex-direction: column
+  justify-content: flex-start
+  flex-wrap: wrap 
+  min-height: 100px
+  max-height: 300px
+  overflow-y: scroll
+
+
+  .value-row
+    font-size: 13px
+    line-height: 15px
+    >span
+      display: inline-block
+      vertical-align: top
+      line-height: 18px
+
+    .checkbox-id
+      font-size: 13px
+      color: $text-color
+      margin-right: 5px
+      min-width: 250px
+      max-width: 250px
+
+    .label-text
+      font-size: 13px
+      color: $text-color
+      min-width: 100px
+      max-width: 100px
+
+  .value-row.abbreviated
+    .checkbox-id
+      min-width: 250px
+      max-width: 250px
+
+
+.small-icon
+  font-size: 16px
+  color: #30638e !important
+  padding-top: 1px
+
 </style>
-
-<style lang="css">
-
-
-</style>
-
 
 <template>
 
   <v-card v-show="selectedVariant" id="variant-inspect" class="app-card full-width">
 
+    <v-card id="pedigree-genotype-popup" :class="showPedigreePopup ? 'pedigree-popup-show' : 'pedigree-popup-hidden'" style="min-width:90px;" v-if="!isSimpleMode && selectedVariant">
+
+
+        <div class="variant-column-header">
+          <div class="popup-variant-header">
+            <p>Inheritance</p>
+            <button id="close-pedigree-genotype-popup" @click="togglePedigreePopup">
+              <v-icon>close</v-icon>
+            </button>
+          </div>
+
+          <v-divider></v-divider>
+        </div>
+
+        <variant-inspect-inheritance-row :selectedVariant="selectedVariant">
+        </variant-inspect-inheritance-row>
+
+        <div class="pedigree-chart popup-pedigree-chart">
+            <app-icon class="hide" icon="affected"></app-icon>
+            <pedigree-genotype-viz id="popup-pedigree-genotype-viz"
+             ref="popupPedigreeGenotypeViz"
+             :margin="{left: 15, right: 14, top: 30, bottom: 4}"
+             :nodeWidth="60"
+             :nodePadding="40"
+             :nodeVerticalPadding="40"
+             :data="pedigreeGenotypeData"
+             :options="{context: 'popup'}">
+            </pedigree-genotype-viz>
+        </div>
+
+    </v-card>
+
     <div style="display:flex;align-items:flex-start;justify-content:flex-start;margin-bottom:5px">
-      <div  id="variant-heading" v-if="selectedVariant" class="text-xs-left" style="display: inline-grid">
-        <span class="pr-1" v-if="selectedVariantRelationship != 'proband'">
-          <span class="rel-header">{{ selectedVariantRelationship | showRelationship }}</span>
+      <div  id="variant-heading" v-if="selectedVariant" class="text-xs-left" >
+        <span v-if="selectedVariantRelationship != 'proband'" class="rel-header">
+           {{ selectedVariantRelationship | showRelationship }}</span>
         </span>
 
         <span>{{ selectedGene.gene_name }} VARIANT</span>
-
-
       </div>
 
       <span v-if="selectedVariant" class="variant-header" style="margin-top:2px">
@@ -435,7 +635,7 @@
       </variant-links-menu>
     </div>
 
-    <div style="display:flex;align-items:flex-start;justify-content:flex-start;margin-bottom:0px;margin-left:193px">
+    <div style="display:flex;align-items:flex-start;justify-content:flex-start;margin-bottom:0px;margin-left:193px" v-if="selectedVariantRelationship == 'proband'">
       <variant-interpretation 
        v-if="!isSimpleMode && selectedVariant"
        style="margin-bottom:4px;margin-right:5px;display: inline-block"
@@ -528,7 +728,7 @@
               >
             </gene-viz>
 
-            <div class="variant-row " style="padding-top:5px">
+            <div class="variant-row " >
               <v-btn flat v-if="selectedVariantRelationship != 'known-variants' && cohortModel.getModel(selectedVariantRelationship ? selectedVariantRelationship : 'proband').isBamLoaded()  && !isSimpleMode "
               class="variant-action-button"  @click="onShowPileup">
                <v-icon>format_align_center</v-icon>
@@ -538,20 +738,33 @@
           </div>
 
       </div>
-      <div class="variant-inspect-column " v-if="selectedVariant && showGenePhenotypes" >
-          <div class="variant-column-header">
+      <div class="variant-inspect-column " v-if="selectedVariant && (showGenePhenotypes || matchingGenePhenotypes.length > 0)" style="min-width:250px;max-width:250px" >
+          <div class="variant-column-header" >
             Gene:Phenotype Associations
             <v-divider></v-divider>
           </div>
+          <div v-if="matchingGenePhenotypes.length > 0">
+            <gene-phenotype-table 
+                 :selectedGene="selectedGene"
+                 :geneModel="cohortModel.geneModel"
+                 :cohortModel="cohortModel"
+                 :highlightMatches="true"
+                 :showDetailsButton="true"
+                 :genePatientPhenotypes="matchingGenePhenotypes"
+                 :showTitle="false"
+                 @show-patient-phenotypes-dialog="onShowPatientGenePhenotypeDialog(true)">
+            </gene-phenotype-table>
+          </div>
           <div v-if="genePhenotypeHits && genePhenotypeHits!==null && genePhenotypeHits.length" >
-            <div v-for="(geneHit, index) in genePhenotypeHits.slice(0,3)" :key="geneHit.key" class="variant-row" style="flex-flow:column">
+            <div class="variant-column-subheader">Phenotype based search hits</div>
+            <div v-for="(geneHit, index) in genePhenotypeHits.slice(0,5)" :key="geneHit.key" class="variant-row" style="flex-flow:column;margin-top:0px;margin-bottom:3px;">
               <div v-for="geneRank in geneHit.geneRanks" :key="geneRank.rank">
-                <div>
-                  <v-chip v-if="geneRank.rank" class="high">
+                <div class="gene-ranks">
+                  <v-chip v-if="geneRank.rank" class="search-hit">
                     <span class="mr-1">#{{ geneRank.rank  }}</span>
                     <span v-if="geneRank.source">{{  geneRank.source }}</span>
                   </v-chip>
-                  <v-chip v-else class="high">
+                  <v-chip v-else class="search-hit">
                     <span v-if="geneRank.source"> {{ geneRank.source }}</span>
                   </v-chip>
                   <span v-if="geneHit.searchTerm && geneRank.source!=='HPO'" class="pheno-search-term">
@@ -562,9 +775,9 @@
                   </span>
                 </div>
               </div>
-            </div>
+            </div>            
           </div>
-          <div v-if="genePhenotypeHits!==null && genePhenotypeHits.length>=4">
+          <div v-if="genePhenotypeHits!==null && genePhenotypeHits.length>=6">
             <v-btn id="show-more-gene-association-button"
               flat small
               slot="activator"
@@ -656,10 +869,10 @@
           </variant-inspect-row>
           <variant-inspect-row v-if="!isSimpleMode && afGnomAD.freqPopMax" :clazz="afGnomAD.class" :value="gnomadFreqPopMax" :label="`Population max allele frequency`" >
           </variant-inspect-row>
-          <div v-if="!isSimpleMode && afGnomAD.totalCount > 0" class="variant-row no-icon">
+          <div v-if="!isSimpleMode && afGnomAD.totalCount >= 0" class="variant-row no-icon">
             <span>{{ afGnomAD.altCount }} alt of {{ afGnomAD.totalCount }} total</span>
           </div>
-          <div v-if="!isSimpleMode && afGnomAD.homCount > 0"  class="variant-row no-icon">
+          <div v-if="!isSimpleMode && afGnomAD.homCount >= 0"  class="variant-row no-icon">
             <span>{{ afGnomAD.homCount }} homozygotes</span>
           </div>
 
@@ -679,7 +892,7 @@
 
       </div>
 
-      <div class="variant-inspect-column" style="min-width:90px" v-if="!isSimpleMode && selectedVariant">
+      <div class="variant-inspect-column" style="min-width:90px" v-if="!isSimpleMode && selectedVariant && selectedVariantRelationship == 'proband'">
           <div class="variant-column-header">
             Inheritance
             <v-divider></v-divider>
@@ -701,11 +914,14 @@
              :data="pedigreeGenotypeData">
             </pedigree-genotype-viz>
           </div>
-
+          <v-btn id="expand-popup-button" v-if="pedigreeGenotypeData && Object.keys(pedigreeGenotypeData).length > 5" small flat light @click="togglePedigreePopup">
+            <i aria-hidden="true" class="v-icon link-icon material-icons theme--light" style="font-size: 20px; color: rgb(48, 99, 142);">open_in_new</i>
+            <p>Expand</p>
+          </v-btn>
 
       </div>
 
-      <div class="variant-inspect-column last" v-if="selectedVariant" style="min-width:130px;max-width:320px">
+      <div class="variant-inspect-column " v-if="selectedVariant" style="min-width:130px;max-width:320px;margin-right:40px;margin-bottom: 10px">
           <div class="variant-column-header" >
             Conservation
             <v-divider></v-divider>
@@ -781,10 +997,86 @@
               </multialign-seq-viz>
 
             </div>
-          </div>
+          </div>   
       </div>
 
+      <div class="variant-inspect-column last" v-if="selectedVariant && !isSimpleMode && selectedVariantRelationship != 'known-variants'" style="flex-grow:2;min-width:initial;max-width:none" >
+        <div class="header-and-button" style="display: flex; align-items:center;">
+          
+          <div class="variant-column-header" style="height: 22px" >
+            Annotations
+            <v-divider></v-divider>
+          </div>
+        
+          <v-btn flat @click="openVariantAnnotDialog" class="select-annotations-button" style="position: relative; z-index: 1;margin-left:10px">
+            <v-icon style="font-size:22px;padding-right:3px">playlist_add_check</v-icon>
+            Select...
+          </v-btn>
+      
+        </div>
+
+        <div class="value-rows" >
+          <div v-for="item in mergedInfoAndFormat" :key="item.id" class="value-row abbreviated">
+            <v-tooltip right color="rgba(0, 0, 0, 0.7)" max-width="200px">
+              <template v-slot:activator="{ on, attrs }">
+                <v-icon class="small-icon"
+                  v-bind="attrs"
+                  v-on="on"
+                >
+                article
+                </v-icon>
+              </template>
+              <span>{{ item.description }}</span>
+            </v-tooltip>
+            <span class="checkbox-id">{{ item.key }}</span>
+            <span class="label-text">{{ item.value }} </span> 
+          </div>
+
+          <div v-if="mosaicValuesMap" v-for="item in mosaicValuesMap" :key="item.id" class="value-row">
+            <v-tooltip right color="rgba(0, 0, 0, 0.7)" max-width="200px">
+              <template v-slot:activator="{ on, attrs }">
+                <span class="small-icon"
+                  v-bind="attrs"
+                  v-on="on"
+                >
+                  <img src="assets/images/mosaic_icon.png" alt="Custom Icon" style="width: 11px; height: 11px; margin-left: 2px; margin-right: 2px" />
+                </span>
+              </template>
+              <span>{{ item.description }}</span>
+            </v-tooltip>
+            <span class="checkbox-id">{{ item.description }}</span>
+            <span class="label-text">{{ item.value }} </span>  
+          </div> 
+        </div>
+
+       
+        
+       
+      </div>
+      
     </div>
+
+    <select-variant-annotations-dialog
+      v-if="selectedVariantRelationship != 'known-variants'"
+      :showDialog="showSelectVariantAnnotationDialog"
+      :cohortModel="cohortModel"
+      :selectedVariantRelationship="selectedVariantRelationship"
+      :variantAnnotationsMap="variantAnnotationsMap"
+      :selectedVariantInfo="selectedVariantInfo"
+      :selectedVariantFormat="selectedFormat"
+      :selectedVariantMosaic="selectedVariantMosaic"
+      :selectedVariantAllAnnots="selectedAll"
+      @close-variant-annot-dialog="closeVariantAnnotDialog"
+      @apply-variant-annot-dialog="applyVariantAnnotDialog">
+    </select-variant-annotations-dialog>
+
+    <patient-gene-phenotype-dialog
+         :showDialog="showPatientGenePhenotypeDialog"
+         :cohortModel="cohortModel"
+         :selectedGene="selectedGene"
+         :launchedFromHub="launchedFromHub"
+         @hide-patient-gene-phenotype-dialog="onShowPatientGenePhenotypeDialog(false)">
+    </patient-gene-phenotype-dialog>
 
   </v-card>
 
@@ -809,7 +1101,10 @@ import PedigreeGenotypeViz      from "../viz/PedigreeGenotypeViz.vue"
 import ConservationScoresViz    from "../viz/ConservationScoresViz.vue"
 import MultialignSeqViz         from "../viz/MultialignSeqViz.vue"
 import GeneAssociationsDialog   from "../partials/GeneAssociationsDialog.vue"
+import GenePhenotypeTable       from "../partials/GenePhenotypeTable.vue"
+import PatientGenePhenotypeDialog      from '../partials/PatientGenePhenotypeDialog.vue'
 
+import SelectVariantAnnotationsDialog from '../partials/SelectVariantAnnotationsDialog.vue'
 
 import BarChartD3               from '../../d3/BarChart.d3.js'
 import MultiAlignD3             from '../../d3/MultiAlign.d3.js'
@@ -835,6 +1130,10 @@ export default {
     ConservationScoresViz,
     MultialignSeqViz,
     GeneAssociationsDialog,
+    GenePhenotypeTable,
+    'patient-gene-phenotype-dialog': PatientGenePhenotypeDialog,
+
+    SelectVariantAnnotationsDialog,
 
   },
   props: {
@@ -855,12 +1154,21 @@ export default {
     showAssessment: null,
     launchedFromClin: null,    
     interpretationMap: null,
-    //mosaicVariantInterpretation: null
+    launchedFromHub: null,
+
+    // props for showing custom annotations of variant
+    variantAnnotationsMap: Object,
+    selectedVariantInfo: null,
+    selectedVariantFormat: null,
+    selectedVariantMosaic: null,
+    selectedVariantAllAnnots: Boolean,
+    mosaicVariant: Object
+
   },
   data() {
     return {
       genePhenotypeHits: null,
-
+      showPedigreePopup: false,
       coverageRegionStart: null,
       coverageRegionEnd: null,
       exon: null,
@@ -924,34 +1232,79 @@ export default {
         'vepAf.gnomAD.AF'           : 'gnomAD (exomes only) allele freq'
       },
 
-      interpretation: null
+      interpretation: null,
+
+      matchingGenePhenotypes: [],
+
+      showPatientGenePhenotypeDialog: false,
+      
+      showSelectVariantAnnotationDialog: false,
+      showVariantAnnotationInfoDialog: false,
+
+      // data fields for showing custom annotations of variant
+      selectedFormat: this.selectedVariantFormat,
+      selectedMosaicVariantAnnotations: this.selectedVariantMosaic,
+      selectedAll: this.selectedVariantAllAnnots,
+      
+      hoveredDescription: '',
+
+      mosaicVariantObject: null,
+
+
       
 
+
+
+      
     }
   },
-
-
   methods: {
+
+    initializeMosaicVariant(mosaicVariant) {
+      this.mosaicVariantObject = mosaicVariant
+    },
+
+    openVariantAnnotationInfoDialog() {
+      console.log("openVariantAnnotationInfoDialog");
+      this.showVariantAnnotationInfoDialog = true;
+    },
+
+    closeVariantAnnotationInfoDialog() {
+      this.showVariantAnnotationInfoDialog = false;
+
+    },
+
+    openVariantAnnotDialog() {
+      this.showSelectVariantAnnotationDialog = true;
+    },
+
+    closeVariantAnnotDialog(selectedInfo, selectedFormat, selectedMosaicVariantAnnotations, selectedAll) {
+      this.selectedFormat = selectedFormat;
+      this.selectedMosaicVariantAnnotations = selectedMosaicVariantAnnotations;
+      this.showSelectVariantAnnotationDialog = false;
+      this.selectedAll = selectedAll;
+      this.$emit("variant-annotations-selected", selectedInfo, this.selectedFormat, this.selectedMosaicVariantAnnotations, this.selectedAll);
+    },
+
+    applyVariantAnnotDialog(selectedInfo, selectedFormat, selectedMosaicVariantAnnotations, selectedAll) {
+      this.selectedFormat = selectedFormat;
+      this.selectedMosaicVariantAnnotations = selectedMosaicVariantAnnotations;
+      this.showSelectVariantAnnotationDialog = false;
+      this.selectedAll = selectedAll;
+
+      this.$emit("variant-annotations-selected", selectedInfo, this.selectedFormat, this.selectedMosaicVariantAnnotations, this.selectedAll);
+    },
+
     refresh: function() {
 
     },
 
-    annotateClinVarVariant(){
-      this.refreshSelectedVariantInfo();
+
+    onShowPatientGenePhenotypeDialog(show) {
+      this.showPatientGenePhenotypeDialog = show;
     },
 
-
-
-
-      refreshSelectedVariantInfo: function() {
-          if (this.selectedVariant) {
-              this.selectedVariantInfo =  this.globalApp.utility.formatDisplay(this.selectedVariant, this.cohortModel.translator, this.isEduMode)
-          } else {
-              this.selectedVariantInfo = null;
-          }
-      },
-
-      formatPopAF: function(afObject) {
+    formatPopAF: function(afObject) {
       let self = this;
       var popAF = "";
       if (afObject['AF'] != ".") {
@@ -966,6 +1319,13 @@ export default {
         }
       }
       return popAF;
+    },
+    togglePedigreePopup() {
+      if (this.showPedigreePopup) {
+        this.showPedigreePopup = false;
+      } else {
+        this.showPedigreePopup = true;
+      }
     },
     selectTranscript: function(transcriptId) {
       this.$emit("transcript-id-selected", transcriptId);
@@ -998,10 +1358,6 @@ export default {
         return "";
       }
     },
-
-
-
-
 
     getNonCanonicalImpact: function(vepHighestImpact) {
       return this.globalApp.utility.capitalizeFirstLetter(vepHighestImpact.toLowerCase());
@@ -1157,7 +1513,13 @@ export default {
         self.initGenePhenotypeHits();
         self.promiseInitCoverage()
         .then(function() {
-          self.showMultiAlignments();
+          return self.showMultiAlignments();
+        })
+        .then(function() {
+          self.cohortModel.promiseGetGenePhenotypeAssociations(self.selectedGene.gene_name, true)
+          .then(function(data) {
+            self.matchingGenePhenotypes = data.hpoEntries;
+          })
         })
       }
     },
@@ -1172,8 +1534,8 @@ export default {
           gtObject.rel = model.relationship;
           gtObject.sex = model.sex
           gtObject.affectedStatus = model.affectedStatus;
-          if (self.selectedVariant.genotypes && self.selectedVariant.genotypes[model.sampleName]) {
-            let gt = self.selectedVariant.genotypes[model.sampleName];
+          if (self.selectedVariant.genotypes && self.selectedVariant.genotypes[model.getSampleName()]) {
+            let gt = self.selectedVariant.genotypes[model.getSampleName()];
             gtObject.zygosity = gt.zygosity.toLowerCase();
 
             var altAndRef = +gt.refCount + +gt.altCount;
@@ -1208,8 +1570,8 @@ export default {
             gtObject.rel = model.relationship;
             gtObject.sex = model.sex
             gtObject.affectedStatus = model.affectedStatus;
-            if (self.selectedVariant.genotypes && self.selectedVariant.genotypes[model.sampleName]) {
-              let gt = self.selectedVariant.genotypes[model.sampleName];
+            if (self.selectedVariant.genotypes && self.selectedVariant.genotypes[model.getSampleName()]) {
+              let gt = self.selectedVariant.genotypes[model.getSampleName()];
               gtObject.zygosity = gt.zygosity.toLowerCase();
 
               var altAndRef = +gt.refCount + +gt.altCount;
@@ -1239,15 +1601,7 @@ export default {
 
       })
       self.$set(self, "pedigreeGenotypeData", thePedigreeGenotypeData);
-      if (self.$refs.pedigreeGenotypeViz) {
-        self.$refs.pedigreeGenotypeViz.update();
-      } else {
-        setTimeout(function() {
-          if (self.$refs.pedigreeGenotypeViz) {
-            self.$refs.pedigreeGenotypeViz.update();
-          }
-        },2000)
-      }
+
 
     },
 
@@ -1262,6 +1616,15 @@ export default {
             var rankRecs        = searchTermRecs[searchTerm];
             self.genePhenotypeHits.push( {key: searchTerm, searchTerm: searchTermLabel, geneRanks: rankRecs } );
           }
+          self.genePhenotypeHits = self.genePhenotypeHits.sort(function(a,b) {
+            if (a.geneRanks[0].rank < b.geneRanks[0].rank) {
+              return -1
+            }else if (a.geneRanks[0].rank > b.geneRanks[0].rank) {
+              return 1;
+            } else {
+              return 0;
+            }
+          })
         }
       }
     },
@@ -1628,11 +1991,95 @@ export default {
         msg += (additionalText ? additionalText : "");
         return msg;
       }
-    }
+    },
+    refreshVariantInterpretation: function() {
+      this.interpretation = this.selectedVariant.interpretation;
+    },
+
+
   },
 
 
   computed: {
+    
+    annotValues : function(){
+      return this.selectedVariant ? this.selectedVariant.allAnnots : {};
+ 
+    },
+
+    formatValues : function(){
+      return this.selectedVariant ? this.selectedVariant.formatMap : {};
+    },
+
+
+    mergedInfoAndFormat() {
+      const merged = [];
+    
+      for (const item of this.selectedVariantInfo) {
+        if (this.selectedVariant && this.selectedVariant.allAnnots)  {
+          let value = "";
+          if (this.selectedVariant.allAnnots.hasOwnProperty(item.key) == false){
+            value = "None";
+          }else{
+            value = this.selectedVariant.allAnnots[item.key];
+          }
+          merged.push({
+            key: item.key,
+            value: value,
+            description: item.value,
+            id: "info" + item.key
+          });
+        }
+      }
+
+      for (const item of this.selectedFormat) {
+        if (this.selectedVariant && this.selectedVariant.formatMap) {
+          let value = "";
+          if (this.selectedVariant.formatMap.hasOwnProperty(item.key) == false){
+            value = "None";
+          }else{
+            value = this.selectedVariant.formatMap[item.key];
+          }
+          merged.push({
+            key: item.key,
+            value: value,
+            description: item.value,
+            id: "format" + item.key
+          });
+        }
+      }
+      return merged; 
+    },
+
+    mosaicValuesMap() {
+      const mosaicValues = [];
+      for (const item of this.selectedMosaicVariantAnnotations) {
+        if (this.mosaicVariantObject && this.mosaicVariantObject.hasOwnProperty(item.value)) {
+          let value = "";
+          if (Array.isArray(this.mosaicVariantObject[item.value]) && this.mosaicVariantObject[item.value].length > 0){
+            value = this.mosaicVariantObject[item.value].join(", ");
+          }else{
+            value = "None";
+          }
+         
+          mosaicValues.push({
+            key: item.value,
+            value: value,
+            description: item.key,
+            id: "mosaic" + item.value
+          });
+        } else {
+          mosaicValues.push({
+            key: item.value,
+            value: "None",
+            description: item.key,
+            id: "mosaic" + item.value
+          });
+        }
+      }
+      return mosaicValues;
+    },
+
     hasAlignments: function() {
       if (this.selectedVariantRelationship) {
         return this.cohortModel.getModel(this.selectedVariantRelationship).isBamLoaded();
@@ -1828,13 +2275,39 @@ export default {
           }
 
           if (this.selectedVariant.gnomAD == null || this.selectedVariant.gnomAD.af == null) {
-            return {freq: "?", link: null, class: "", source: source,
-                    infoPopup: infoPopup, extraInfo1: extraInfo1, extraInfo2: extraInfo2,
-                    afExomes: afExomes};
+            return {
+              link: null,
+              label: "Allele frequency",
+              freq: "?", 
+              class: "",
+              freqPopMax: '0',
+              altCount: '0', 
+              totalCount: '0',
+              homCount: '0',
+              source: source,
+              loading: null,
+              infoPopup: infoPopup, 
+              extraInfo1: extraInfo1, 
+              extraInfo2: extraInfo2,
+              afExomes: afExomes
+            };
           } else if (this.selectedVariant.gnomAD.af  == '.') {
-            return {freq: "0", link: null, class: "level-high", source: source,
-                    infoPopup: infoPopup, extraInfo1: extraInfo1, extraInfo2: extraInfo2,
-                    afExomes: afExomes};
+            return {
+              link: null,
+              label: "Allele frequency",
+              freq: '0',  
+              class: "level-high",
+              freqPopMax: '0',
+              altCount: '0', 
+              totalCount: '0',
+              homCount: '0',
+              source: source,
+              loading: null,
+              infoPopup: infoPopup, 
+              extraInfo1: extraInfo1, 
+              extraInfo2: extraInfo2,
+              afExomes: afExomes
+            };
           } else  {
             var gnomAD = {};
             gnomAD.link =  "http://gnomad.broadinstitute.org/variant/"
@@ -1959,22 +2432,11 @@ export default {
       }
     },
 
-    refreshVariantInterpretation: function() {
-      this.interpretation = this.selectedVariant.interpretation;
-    }
+
   },
 
   watch: {
 
-    //mosaicVariantInterpretation: function() {
-    //  let self = this;
-    //  if (self.interpretation == null || self.interpretation == 'not-reviewed') {
-    //    self.$nextTick(function() {
-    //      self.selectedVariant.interpretation = self.mosaicVariantInterpretation;
-    //      self.interpretation = self.mosaicVariantInterpretation;            
-    //    })
-    //  }
-    //},
     selectedPhenotype: function(){
         this.initGenePhenotypeHits();
     },
@@ -1983,11 +2445,18 @@ export default {
       let self = this;
       this.$nextTick(function() {
           self.loadData();
-          if (self.selectedVariantRelationship === "known-variants") {
-              self.annotateClinVarVariant(self.selectedVariant);
-          }
       })
     },
+
+    mosaicVariant: {
+      handler(newMosaicVariant, oldMosaicVariant) {
+        if (newMosaicVariant !== oldMosaicVariant) {
+          this.initializeMosaicVariant(newMosaicVariant);
+        }
+      },
+      deep: true,
+    },
+
   },
 
   filters: {
@@ -2007,8 +2476,7 @@ export default {
         // Capitalize first letter
         return buf.charAt(0).toUpperCase() + buf.slice(1);
       }
-    },
-
+    }
 
 
   },
@@ -2022,25 +2490,16 @@ export default {
     if(this.selectedVariant){
         self.$nextTick(function() {
           self.loadData();
-          if (self.selectedVariantRelationship === "known-variants") {
-              self.annotateClinVarVariant(self.selectedVariant);
-          }
           self.interpretation = self.selectedVariant.interpretation  && self.selectedVariant.interpretation.length > 0 ? self.selectedVariant.interpretation : "not-reviewed";
-
         })
     }
 
-
+    
   },
 
-  created: function() {
-  }
-
+  created: function() { 
+    
+  },
 
 }
 </script>
-
-
-
-
-

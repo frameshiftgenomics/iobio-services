@@ -89,6 +89,7 @@
           padding: 0px 5px
           font-size: 11px
           font-weight: 500
+          cursor: pointer
 
   
 
@@ -132,7 +133,7 @@
 
             <div style="min-height:100px;max-height: 300px;overflow-y:scroll">
                 <gene-viz id="select-transcript-viz"
-                          :data="selectedGene.transcripts"
+                          :data="reversedTranscripts"
                           :margin=margin
                           :trackHeight=trackHeight
                           :cdsHeight=cdsHeight
@@ -142,6 +143,7 @@
                           :regionEnd="selectedGene.end"
                           :showBrush=false
                           :showXAxis=false
+                          :selectedTranscript="selectedTranscript"
                           @transcript-selected="onTranscriptSelected">
                 </gene-viz>
 
@@ -159,7 +161,7 @@
         {{ geneModel.geneSource }}
     </v-chip>
 
-    <v-badge class="info" style="margin-left:5px;" v-if="selectedTranscript.transcript_type != 'null' && selectedTranscript.transcript_type != 'protein_coding'"> {{ selectedTranscript.transcript_type }} </v-badge>
+    <v-badge class="info" style="margin-left:5px;" v-if="selectedTranscript.transcript_type != 'null' && selectedTranscript.transcript_type != '.' && selectedTranscript.transcript_type != 'protein_coding'"> {{ selectedTranscript.transcript_type }} </v-badge>
 
    
     <v-badge class="info mane-select" style="margin-left:5px;" v-if="selectedTranscript.is_mane_select == 'true'">MANE SELECT</v-badge>
@@ -222,11 +224,19 @@
                 let self = this;
                 self.$emit('gene-source-selected', self.geneSource);
             },
+            scrollToSelection: function(){
+                let selection = document.getElementsByClassName("transcript current")[0];
+                if (selection) {
+                    selection.scrollIntoView({behavior: "smooth"});
+                }
+            }
         },
         watch:  {
             showTranscriptsMenu: function() {
                 if (this.showTranscriptsMenu) {
                     this.$emit("transcriptMenuOpened");
+
+                    setTimeout(this.scrollToSelection, 100)
                 }
             },
             selectedTranscript: function() {
@@ -245,6 +255,33 @@
                 }
             }
 
+        },
+        computed: {
+            reversedTranscripts: function() {
+                //Reverses the order of the transcripts
+                let transcripts = this.selectedGene.transcripts;
+                let ordered = transcripts;
+
+                let keys = Object.keys(transcripts);
+                keys.reverse();
+                
+                let iter = 0;
+
+                for (let key in ordered) {
+                    // if the iter number is the same as the key or less, then we are done no more need to sort 
+                    if (keys[iter] <= key) {
+                        return ordered;
+                    }
+                    let top = ordered[key];
+                    let bottom = ordered[keys[iter]];
+
+                    ordered[key] = bottom;
+                    ordered[keys[iter]] = top;
+
+                    iter += 1;
+                }
+                return ordered;
+            }
         }
     }
 </script>

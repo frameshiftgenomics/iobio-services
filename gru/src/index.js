@@ -10,14 +10,14 @@ const gene2PhenoRouter = require('./gene2pheno.js');
 const geneInfoRouter = require('./geneinfo.js');
 const genomeBuildRouter = require('./genomebuild.js');
 const hpoRouter = require('./hpo.js');
-const { parseArgs, dataPath } = require('./utils.js');
+const { parseArgs, dataPath, replaceAll } = require('./utils.js');
 const fs = require('fs');
 const { serveStatic } = require('./static.js');
 const stream = require('stream');
 const semver = require('semver');
 
 const MAX_STDERR_LEN = 1048576;
-const MIN_DATA_DIR_VERSION = '1.9.0';
+const MIN_DATA_DIR_VERSION = '1.11.0';
 
 console.log(`Using data directory ${path.resolve(dataPath(''))}`);
 const dataDirVersion = fs.readFileSync(dataPath('VERSION')).toString();
@@ -51,6 +51,12 @@ router.get('/static/*', async (ctx) => {
   const reqPath = ctx.path.startsWith('/gru') ? ctx.path.slice(4) : ctx.path;
 
   const fsPath = path.join(__dirname, '..', reqPath);
+  await serveStatic(ctx, fsPath);
+  ctx.set('Cache-Control', 'max-age=86400');
+});
+
+router.get('/gru_data/*', async (ctx) => {
+  const fsPath = path.join(dataPath(''), ctx.path.slice(10));
   await serveStatic(ctx, fsPath);
 });
 
@@ -106,6 +112,14 @@ router.post('/alignmentStatsStream', async (ctx) => {
 
 // gene.iobio & oncogene & cohort-gene endpoints
 //
+router.post('/bedRegion', async (ctx) => {
+    const params = JSON.parse(ctx.request.body);
+    const url = params.url;
+    const indexUrl = params.indexUrl ? params.indexUrl : '';
+    const region = genRegionStr(params.region);
+    await handle(ctx, 'bedRegion.sh', [params.url, indexUrl, region]);
+});
+
 router.post('/variantHeader', async (ctx) => {
     const params = JSON.parse(ctx.request.body);
     const indexUrl = params.indexUrl ? params.indexUrl : '';
@@ -523,16 +537,17 @@ router.post('/clinReport', async (ctx) => {
 
 // oncogene endpoints
 //
-router.post('/getIdColumns', async (ctx) => {
+router.post('/bcftoolsView', async (ctx) => {
 
     const params = JSON.parse(ctx.request.body);
 
-    const regionStr = genRegionsStr(params.regions, ",");
+    const regionStr = params.regions == undefined ? "" : genRegionsStr(params.regions, ",");
+    const numRecords = params.numRecords == undefined ? "" : params.numRecords;
     const args = [
-        params.vcfUrl, regionStr
+        params.vcfUrl, regionStr, numRecords
     ];
 
-    await handle(ctx, 'getIdColumns.sh', args, { ignoreStderr: true });
+    await handle(ctx, 'bcftoolsView.sh', args, { ignoreStderr: true });
 });
 
 router.post('/checkBamBai', async (ctx) => {
@@ -571,6 +586,20 @@ router.post('/vcfStatsStream', async (ctx) => {
 
 async function handle(ctx, scriptName, args, options) {
 
+  const scriptPath = path.join(__dirname, '../scripts', scriptName);
+
+  if (ctx.query.print_script === 'true') {
+    let script = fs.readFileSync(scriptPath).toString();
+
+    args.forEach((arg, i) => {
+      script = replaceAll(script, '$' + (i + 1), `"${arg}"`);
+      script = replaceAll(script, '${' + (i + 1) + '}', `"${arg}"`);
+    });
+
+    ctx.body = script;
+    return;
+  }
+
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gru-'));
 
   if (ctx.gruParams) {
@@ -579,7 +608,6 @@ async function handle(ctx, scriptName, args, options) {
 
   const opts = {cwd: tmpDir, ...options};
   
-  const scriptPath = path.join(__dirname, '../scripts', scriptName);
   const proc = spawn(scriptPath, args, opts);
 
   // Kill process if it runs for more than 5 minutes
@@ -727,7 +755,10 @@ else {
 async function logger(ctx, next) {
   const contentType = ctx.get('content-type').split(';')[0];
 
+  let timestamp = new Date().toISOString();
+
   if (ctx.method !== 'POST' || contentType != 'text/plain') {
+    console.log(`${timestamp}\t${ctx.method}\t${ctx.url}`);
     await next();
     return;
   }
@@ -736,7 +767,6 @@ async function logger(ctx, next) {
 
   ctx.gruParams = params;
 
-  let timestamp = new Date().toISOString();
   const start = Date.now();
   console.log(`${timestamp}\t${params._requestId}\tstart\t${ctx.url}\t${params._attemptNum}`);
 

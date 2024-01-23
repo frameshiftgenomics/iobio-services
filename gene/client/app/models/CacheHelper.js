@@ -1,4 +1,5 @@
 import CacheIndexStore   from './CacheIndexStore.js'
+import LZString from 'lz-string'
 
 function CacheHelper(globalApp, forceLocalStorage) {
 
@@ -340,7 +341,8 @@ CacheHelper.prototype.cacheGenes = function(analyzeCalledVariants, analyzeGeneCo
     // Invoke method to cache each of the genes in the queue
     var count = 0;
     for (var i = startingPos; i < me.globalApp.DEFAULT_BATCH_SIZE && count < sizeToQueue && i < me.cacheQueue.length; i++) {
-      me.promiseCacheGene(me.cacheQueue[i], analyzeCalledVariants, analyzeGeneCoverage, annotateVariants)
+      let geneToAnalyze = me.cacheQueue[i];
+      me.promiseCacheGene(geneToAnalyze, analyzeCalledVariants, analyzeGeneCoverage, annotateVariants)
       .then(function(data) {
         me.cacheNextGeneSuccess(data.gene, data.transcript, analyzeCalledVariants, analyzeGeneCoverage, annotateVariants, callback);
       })
@@ -353,7 +355,12 @@ CacheHelper.prototype.cacheGenes = function(analyzeCalledVariants, analyzeGeneCo
           if (error && error.hasOwnProperty('alertType') && error.alertType == 'warning') {
             me.dispatch.alertIssued('warning', error.message, error.geneName);            
             return Promise.resolve({'geneName': error.geneName});
+          } else if (error && error.hasOwnProperty('alertType') && error.alertType == 'error') {
+            me.dispatch.alertIssued('error', error.message, error.geneName);            
+            return me.cohort.promiseSummarizeError(error.geneName, error.message)
           } else {
+            let geneName = error.hasOwnProperty("geneName") ? error.geneName : geneToAnalyze;
+            me.dispatch.alertIssued('error', error.message);            
             return me.cohort.promiseSummarizeError(error.geneName, error.message)
           }
         }
@@ -503,7 +510,7 @@ CacheHelper.prototype.promiseCacheGene = function(geneName, analyzeCalledVariant
 
         })
         .catch(function(error) {
-          cacheReject({'geneName': theGeneName, 'message': error});
+          cacheReject({'geneName': theGeneName, 'message': error, 'alertType': 'error'});
         });
       }
     })
@@ -511,9 +518,9 @@ CacheHelper.prototype.promiseCacheGene = function(geneName, analyzeCalledVariant
       if (error.hasOwnProperty('message') && error.hasOwnProperty('gene')) {
         cacheReject({'geneName': error.gene, 
                      'message': error.message, 
-                     'alertType': error.hasOwnProperty('alertType') ? error.alertType : null})
+                     'alertType': error.hasOwnProperty('alertType') ? error.alertType : 'error'})
       } else {
-        cacheReject({'geneName': theGeneName, 'message': error});
+        cacheReject({'geneName': theGeneName, 'message': error, 'alertType': 'error'});
       }
     });
     
@@ -963,28 +970,6 @@ CacheHelper.prototype.promiseLoadCache = function(cacheData, dataIsAlreadyCompre
         
       })
       .then(function() {
-        /*
-        let thePromises = []
-        Object.keys(geneToProbandVcfData).forEach(function(gene) {
-          let data = geneToProbandVcfData[gene];
-          let vcfData = data.cache;
-          let keyObject = data.keyObject;
-          let theGeneObject = me.cohort.geneModel.geneObjects[keyObject.gene];
-          let theTranscript = {transcript_id: keyObject.transcript};
-          if (dataIsCompressed) {
-            CacheHelper.promiseDecompressData(data.cache, true)
-            .then(function(theVcfData) {
-              let p = me.cohort.promiseSummarizeDanger(theGeneObject, theTranscript, theVcfData, {})
-            })
-            thePromises.push(p)            
-          } else {
-            let p = me.cohort.promiseSummarizeDanger(theGeneObject, theTranscript, vcfData, {})
-            thePromises.push(p)
-          }
-        })
-        return Promise.all(thePromises)
-        */
-        //me.analyzeAll(me.cohort, false, false, true)
         resolve();
       })
       .catch(function(error) {
@@ -1170,10 +1155,8 @@ CacheHelper.showError = function(key, cacheError) {
         // If we have shown this kind of cache error 2 times already, just show in right hand corner instead
         // of showning dialog with ok/cancel.
         if (errorCount < 3) {
-          self.dispatch.alertIssued('warning', message)
           CacheHelper.recordedCacheErrors[errorKey] = null;
         } else if (errorCount < 8) {
-          self.dispatch.alertIssued('error', message, null, ['error has occurred more than 5 times'])
           CacheHelper.recordedCacheErrors[errorKey] = null;
         }
       }
@@ -1186,7 +1169,22 @@ CacheHelper.promiseCompressData = function(data) {
   return new Promise(function(resolve, reject) {
     if (data && data != "") {
       var cache = [];
+      if (data.hasOwnProperty("badges")) {
+        Object.keys(data.badges).forEach(function(filterKey) {
+          let variants = data.badges[filterKey];
+          if (variants) {
+            let clonedVariants = variants.map(function(v) {
+              let clonedVariant = $.extend({}, v)
+              return clonedVariant;
+            })
+            data.badges[filterKey] = clonedVariants;            
+          }
+        })
+      }
       var dataString = JSON.stringify(data, function(key, value) {
+        if (key == 'bindTo') {
+          return;
+        }
         if (typeof value === 'object' && value !== null) {
             if (cache.indexOf(value) !== -1 && key != 'genotype') {
                 // Circular reference found, discard key
@@ -1280,6 +1278,7 @@ CacheHelper.prototype.promiseCacheData = function(key, data, options) {
       })
       .catch(function(error) {
         var msg = "A problem occurred in CacheHelper.promiseCacheData() when calling cacheIndexStore.promiseSetData(): " + error;
+        console.log(error)
         console.log(msg);
         reject(msg);
       });

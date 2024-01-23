@@ -36,7 +36,8 @@ class FilterModel {
     this.geneCoverageMean          = 15;
     this.geneCoverageMedian        = 15;
 
-
+    this.dispatch = d3.dispatch("variantFlagged");
+    d3.rebind(this, this.dispatch, "on");
 
     this.flagCriterion = {
       gene: {
@@ -48,6 +49,7 @@ class FilterModel {
           order: 0,
           userFlagged: false,
           maxAf: null,
+          maxHomozygotes: null,
           clinvar: null,
           impact: null,
           consequence: null,
@@ -66,6 +68,7 @@ class FilterModel {
           order: 1,
           userFlagged: false,
           maxAf: .05,
+          maxHomozygotes: null,
           clinvar: ['clinvar_path', 'clinvar_lpath'],
           impact: null,
           consequence: null,
@@ -84,6 +87,7 @@ class FilterModel {
           order: 2,
           userFlagged: false,
           maxAf: .01,
+          maxHomozygotes: null,
           clinvar: null,
           impact: ['HIGH', 'MODERATE'],
           consequence: null,
@@ -102,6 +106,7 @@ class FilterModel {
           order: 3,
           userFlagged: false,
           maxAf: .01,
+          maxHomozygotes: null,
           clinvar: null,
           impact: ['HIGH', 'MODERATE'],
           consequence: null,
@@ -121,6 +126,7 @@ class FilterModel {
           order: 4,
           userFlagged: false,
           maxAf: .01,
+          maxHomozygotes: null,
           clinvar: null,
           impact: ['HIGH', 'MODERATE'],
           consequence: null,
@@ -139,6 +145,7 @@ class FilterModel {
           order: 5,
           userFlagged: false,
           maxAf: .05,
+          maxHomozygotes: null,
           clinvar: null,
           impact: ['HIGH', 'MODERATE'],
           consequence: null,
@@ -157,6 +164,7 @@ class FilterModel {
           userFlagged: false,
           order: 6,
           maxAf: .01,
+          maxHomozygotes: null,
           clinvar: null,
           impact: ['HIGH', 'MODERATE'],
           consequence: null,
@@ -175,6 +183,7 @@ class FilterModel {
           order: 7,
           userFlagged: false,
           maxAf: .025,
+          maxHomozygotes: null,
           clinvar: null,
           impact: ['HIGH', 'MODERATE'],
           consequence: null,
@@ -213,6 +222,7 @@ class FilterModel {
           order: 8,
           userFlagged: false,
           maxAf: null,
+          maxHomozygotes: null,
           clinvar: null,
           impact: null,
           consequence: null,
@@ -232,6 +242,7 @@ class FilterModel {
           order: 9,
           userFlagged: false,
           maxAf: null,
+          maxHomozygotes: null,
           clinvar: null,
           impact: null,
           consequence: null,
@@ -254,6 +265,7 @@ class FilterModel {
           order: 0,
           userFlagged: false,
           maxAf: null,
+          maxHomozygotes: null,
           clinvar: null,
           impact: null,
           consequence: null,
@@ -272,6 +284,7 @@ class FilterModel {
           order: 1,
           userFlagged: false,
           maxAf: .01,
+          maxHomozygotes: null,
           clinvar: ['clinvar_path', 'clinvar_lpath'],
           impact: null,
           consequence: null,
@@ -290,6 +303,7 @@ class FilterModel {
           order: 2,
           userFlagged: false,
           maxAf: .01,
+          maxHomozygotes: null,
           clinvar: null,
           impact: ['HIGH', 'MODERATE'],
           consequence: null,
@@ -308,6 +322,7 @@ class FilterModel {
           order: 3,
           userFlagged: false,
           maxAf: .01,
+          maxHomozygotes: null,
           clinvar: null,
           impact: ['HIGH', 'MODERATE'],
           consequence: null,
@@ -327,6 +342,7 @@ class FilterModel {
           order: 4,
           userFlagged: false,
           maxAf: .01,
+          maxHomozygotes: null,
           clinvar: null,
           impact: ['HIGH', 'MODERATE'],
           consequence: null,
@@ -345,6 +361,7 @@ class FilterModel {
           order: 5,
           userFlagged: false,
           maxAf: .05,
+          maxHomozygotes: null,
           clinvar: null,
           impact: ['HIGH', 'MODERATE'],
           consequence: null,
@@ -363,6 +380,7 @@ class FilterModel {
           userFlagged: false,
           order: 6,
           maxAf: .01,
+          maxHomozygotes: null,
           clinvar: null,
           impact: ['HIGH', 'MODERATE'],
           consequence: null,
@@ -381,6 +399,7 @@ class FilterModel {
           order: 7,
           userFlagged: false,
           maxAf: .01,
+          maxHomozygotes: null,
           clinvar: null,
           impact: ['HIGH', ],
           consequence: null,
@@ -401,6 +420,7 @@ class FilterModel {
           order: 8,
           userFlagged: false,
           maxAf: null,
+          maxHomozygotes: null,
           clinvar: null,
           impact: null,
           consequence: null,
@@ -420,6 +440,7 @@ class FilterModel {
           order: 9,
           userFlagged: false,
           maxAf: null,
+          maxHomozygotes: null,
           clinvar: null,
           impact: null,
           consequence: null,
@@ -908,7 +929,18 @@ class FilterModel {
         variant.analysisMode.gene = true;
       }
 
-      badges.flagged.push(variant);
+
+      // We clone the variant because when we save the analysis 
+      // (stringified JSON of the cache), we want to prevent stringify from
+      // assuming we have recursive data; otherwise stringify will exclude the
+      // variant from the string, showing it as an empty object.
+      let clonedVariant = $.extend({}, variant)
+      badges.flagged.push(clonedVariant);
+
+      // Dispatch an event so that listener (GeneHome) can
+      // update the variant with saved Mosaic variant annotation
+      // for 'Interpretation'
+      self.dispatch.variantFlagged(variant);
     }
 
   }
@@ -939,6 +971,7 @@ class FilterModel {
     var passes = {
       all: false,
       af: false,
+      homozygotes: false,
       impact: false,
       consequence: false,
       clinvar: false,
@@ -970,6 +1003,9 @@ class FilterModel {
     } else {
       if (badgeCriteria.maxAf == null || (variant.afHighest <= badgeCriteria.maxAf)) {
         passes.af = true;
+      }
+      if (badgeCriteria.maxHomozygotes == null || (parseInt(variant.gnomAD.homCount) <= parseInt(badgeCriteria.maxHomozygotes))) {
+        passes.homozygotes = true;
       }
       if (badgeCriteria.minRevel == null || badgeCriteria.minRevel == "") {
         passes.revel = true;
@@ -1025,7 +1061,7 @@ class FilterModel {
           passes[criterion] = true;
         })
       }
-      if (passes.af && passes.revel && passes.depth && passes.altCount && passes.impact && passes.consequence && passes.clinvar && passes.inheritance && passes.zygosity) {
+      if (passes.homozygotes && passes.af && passes.revel && passes.depth && passes.altCount && passes.impact && passes.consequence && passes.clinvar && passes.inheritance && passes.zygosity) {
         passes.all = true;
       }
     }

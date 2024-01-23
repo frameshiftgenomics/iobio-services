@@ -2,7 +2,7 @@
  * GeneHome.vue
  *
  */
-<style lang="sass">
+ <style lang="sass">
 
 @import ../../../assets/sass/variables
 
@@ -52,6 +52,17 @@
       right:      -15px
       margin-left: 0px !important
 
+
+.v-badge.count
+  .v-badge__badge
+    background-color: $count-badge-color !important
+    border: thin solid $count-badge-border-color !important
+    color: $text-color !important
+    font-size: 12px !important
+    height: 24px
+    width: 24px
+    font-size: 10.5px !important
+    font-weight: 500
 
   #gene-viz, #gene-viz-zoom
     .transcript.current
@@ -246,9 +257,6 @@ main.content.clin, main.v-content.clin
 
 
 </style>
-
-
-
 <template>
   <div>
 
@@ -354,12 +362,15 @@ main.content.clin, main.v-content.clin
       @clear-app-alert="onClearAppAlert"
       @clear-all-app-alerts="clearAppAlerts"
       @hide-settings-dialog="onHideSettingsDialog"
+      @show-alert-panel="onAlertPanelShown"
+      @hide-alert-panel="onAlertPanelHidden"
+      @show-alerts-for-gene="onShowAlertsForGene"
     >
     </navigation>
 
 
     <v-content   :class="launchedFromClin ? 'clin' : '' ">
-      <v-container class="fluidMax">
+      <v-container class="fluidMax" style="overflow-y:scroll">
 
 
         <modal name="pileup-modal"
@@ -434,8 +445,6 @@ main.content.clin, main.v-content.clin
          @show-sfari-variants="onShowSfariVariantsCard"
          @on-insufficient-coverage="onInsufficientCoverage">
         </genes-card>
-
-
 
       <v-card v-show="showGeneVariantsCard" tile id="gene-variants-card" class="app-card full-width">
         <gene-variants-card
@@ -588,6 +597,7 @@ main.content.clin, main.v-content.clin
           :genomeBuildHelper="genomeBuildHelper"
           :cohortModel="cohortModel"
           :info="selectedVariantInfo"
+          :launchedFromHub="launchedFromHub"
           :selectedVariantKey="selectedVariantKey"
           :selectedPhenotype="phenotypeTerm"
           :showGenePhenotypes="launchedFromClin || phenotypeTerm"
@@ -596,12 +606,19 @@ main.content.clin, main.v-content.clin
           :showAssessment="hasVariantAssessment || showVariantAssessment"
           :launchedFromClin="launchedFromClin"
           :interpretationMap="interpretationMap"
+          :variantAnnotationsMap="variantAnnotationsMap"
+          :selectedVariantInfo="selectedInfo"
+          :selectedVariantFormat="selectedFormat"
+          :selectedVariantMosaic="selectedMosaic"
+          :mosaicVariant="mosaicVariant"
+          :selectedVariantAllAnnots="selectedAll"
           
           @show-pileup-for-variant="onShowPileupForVariant"
           @apply-variant-interpretation="onApplyVariantInterpretation"
           @apply-variant-notes="onApplyVariantNotes"
           @show-variant-assessment="onShowVariantAssessment"
           @transcript-id-selected="onTranscriptIdSelected"
+          @variant-annotations-selected="onVariantAnnotationSelected"
           >
           </variant-inspect-card>
           <!--mosaicVariantInterpretation="selectedVariant.mosaic_interpretation" -->
@@ -630,7 +647,6 @@ main.content.clin, main.v-content.clin
 
 
         </div>
-
 
 
 
@@ -705,7 +721,6 @@ main.content.clin, main.v-content.clin
     </save-analysis-popup>
 
 
-    </v-dialog>
 
 
     <v-dialog v-model="interpretationProgressDialog" persistent max-width="375">
@@ -882,7 +897,7 @@ export default {
       projectId: null,
       geneSet: null,
       variantSet: null,
-      variantAnnotationsMap: null,
+      variantAnnotationsMap: {},
       launchedWithUrlParms: false,
       clinSetData: null,
       clinPersistCache: true,
@@ -1043,6 +1058,7 @@ export default {
 
       nonProbandModels: [],
 
+      variantSet: null,
       variantSetCounts: {},
 
       lastSave: null,
@@ -1083,7 +1099,13 @@ export default {
 
       appAlerts: [],
       appAlertCounts: {'total': 0, 'success': 0, 'info': 0, 'warning': 0, 'error': 0},
-      geneToAppAlerts: {}
+      geneToAppAlerts: {},
+
+      selectedInfo: [],
+      selectedFormat: [],
+      selectedMosaic: [],
+      mosaicVariant: {},
+      selectedAll: false,
     }
   },
 
@@ -1181,7 +1203,23 @@ export default {
           }
         }
       }
-    }
+    },
+    
+    selectedVariant: function() {
+      let self = this;
+      if (this.launchedFromHub && this.selectedVariant && this.selectedMosaic && this.selectedMosaic.length > 0) {
+        this.promiseGetMosaicVariant(self.selectedVariant)
+        .then((mosaicVariant) => {
+          if(mosaicVariant){
+            self.mosaicVariant = mosaicVariant;
+          }    
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+      }
+    },
+
   },
 
   methods: {
@@ -1266,8 +1304,8 @@ export default {
           self.launchedFromClin,
           new FreebayesSettings());
 
-        self.cohortModel.on("alertIssued", function(type, message, genes, details) {
-          self.addAlert(type, message, genes)
+        self.cohortModel.on("alertIssued", function(type, message, genes, details, options) {
+          self.addAlert(type, message, genes, details, options)
         })
 
         self.geneModel.on("geneDangerSummarized", function(dangerSummary) {
@@ -1281,8 +1319,11 @@ export default {
             console.log(error.message)
           })
         })
-        self.geneModel.on("alertIssued", function(type, message, genes, details) {
-          self.addAlert(type, message, genes)
+        self.geneModel.on("alertIssued", function(type, message, genes, details, options) {
+          self.addAlert(type, message, genes, details, options)
+        })
+        self.geneModel.on("alertRetracted", function(type, partialMessage, genes) {
+          self.onRetractAppAlert(type, partialMessage, genes)
         })
 
         self.cacheHelper.cohort = self.cohortModel;
@@ -1310,6 +1351,23 @@ export default {
 
         self.filterModel = new FilterModel(self.globalApp, self.cohortModel.affectedInfo, self.isBasicMode, self.isFullAnalysis);
         self.cohortModel.filterModel = self.filterModel;
+        self.filterModel.on("variantFlagged", function(variant) {
+          if (self.launchedFromHub) {
+            self.promiseInitMosaicVariantInterpretation(variant)
+            .then(function(mosaicInterpretation) {
+              if (mosaicInterpretation && mosaicInterpretation != 'none') {
+                // Only initialize the interpretation to the mosaic interpretation if 
+                // it hasn't been entered in yet
+                if (variant.interpretation == null || variant.interpretation == '' || variant.interpretation == 'not-reviewed') {
+                  variant.interpretation = mosaicInterpretation;
+                  if (self.$refs.navRef && self.$refs.navRef.$refs.flaggedVariantsRef) {
+                    self.$refs.navRef.$refs.flaggedVariantsRef.populateGeneLists();
+                  }
+                }
+              }
+            })
+          }
+        })
 
         self.analysisModel = new AnalysisModel(self.globalApp, self.geneModel, 
           self.cohortModel, self.cacheHelper, self.genomeBuildHelper, 
@@ -1369,7 +1427,7 @@ export default {
 
               if (self.analysis && self.analysis.payload && self.analysis.payload.variants && self.analysis.payload.variants.length > 0) {
                 // do nothing -- variants already loaded
-              } else if (self.selectedGene && Object.keys(self.selectedGene).length > 0) {
+              } else if (self.selectedGene && Object.keys(self.selectedGene).length > 0 && self.selectedGene.gene_name != "") {
                 self.promiseLoadData()
                 .then(function() {
                   self.showLeftPanelWhenFlaggedVariants();
@@ -1631,7 +1689,7 @@ export default {
             } else {
               // We are not loading an analysis. We launched gene.iobio from
               // Mosaic, entering gene name(s) or a gene set
-              let hasVariantSet = (self.variantSet && self.variantSet.variants)
+              let hasVariantSet = (self.variantSet && self.variantSet.variants) ? true : false
               if (hasVariantSet) {
                 resolve();
               } else {
@@ -1718,20 +1776,69 @@ export default {
       })
     },
 
-    addAlert: function(type, message, genes=null, details=null) {
+    onRetractAppAlert: function(type, partialMessage, genes) {
       let self = this;
 
       let matching = self.appAlerts.filter(function(alert) {
         if (alert.type == type && 
-            alert.message == message &&
-            alert.genes == genes && 
-            alert.details == details) {
+            alert.message.indexOf(partialMessage) >= 0 && 
+            alert.genes == genes) {
           return true;
         } else {
           return false;
         }
       })
+      matching.forEach(function(alertToRemove) {
+        let index = self.appAlerts.indexOf(alertToRemove);
+        if (index >= 0) {
+          self.appAlertCounts[alertToRemove.type] -= 1 
+          self.appAlertCounts.total -= 1;
 
+          self.appAlerts.splice(index, 1)
+
+          // We have removed the alert for appAlerts. Now remove it
+          // from the gene-to-alerts map.
+          if (genes) {
+            genes.split(", ").forEach(function(geneName) {
+              let alertsForGene = self.geneToAppAlerts[geneName]
+              let indexToRemove = null;
+              // Remove alert from array in gene to alerts map 
+              for (let idx = 0; idx < alertsForGene.length; idx++) {
+                let theAlert = alertsForGene[idx];
+                if (theAlert.type == type && 
+                    theAlert.message.indexOf(partialMessage) >= 0 && 
+                    theAlert.genes == genes) {
+                  indexToRemove = idx;
+                  break;
+                }
+              }
+              if (indexToRemove >= 0) {
+                alertsForGene.splice(indexToRemove, 1);
+              }
+
+            })
+          }
+        }
+      })
+      if (matching.length > 0) {
+        if (self.$refs.navRef && self.$refs.navRef.$refs.genesPanelRef) {
+          self.$refs.navRef.$refs.genesPanelRef.updateGeneSummaries();
+        }  
+      }
+    },
+
+    onAlertPanelShown: function() {
+    },
+
+    onAlertPanelHidden: function() {
+    },
+
+    addAlert: function(type, message, genes=null, details=null, options) {
+      let self = this;
+
+      let matching = self._getMatchingAlerts(type, message, genes, details)
+
+      let alert = null;
       if (matching.length == 0) {
         let pad2 = function(n) { return n < 10 ? '0' + n : n }
         let pad3 = function(n) { 
@@ -1752,15 +1859,17 @@ export default {
          + pad2( date.getSeconds() )
          + pad3( date.getMilliseconds() );
 
-        let alert = {'type': type, 
+        alert = {'type': type, 
         'message': message, 
         'genes': genes, 
         'timestamp': timestamp, 
         'key': timestamp + "-" + this.appAlerts.length, 
-        'showDetails': false}
+        'showDetails': false,
+        'selected': type == 'error' || (options && options.selectAlert) ? true : false}
         if (details) {
           alert.details = details;
         }
+        
         this.appAlerts.push(alert)
 
         if (genes && genes.length > 0) {
@@ -1780,17 +1889,175 @@ export default {
         this.appAlertCounts[type] += 1 
         this.appAlertCounts.total += 1
         
-      } 
+      } else if (matching.length > 0) {
+        alert = matching[0]
+        if (alert && (type == 'error' || (options && options.selectAlert)))  {
+          self._selectAlert(alert)
+        }
+      }
 
-      if (type == 'error') {
+
+      if (type == 'error' || (options && options.showAlertPanel)) {
         if (this.$refs.navRef) {
-          this.$refs.navRef.onShowNotificationDrawerShowLast();
+          this.$refs.navRef.onShowNotificationDrawerShowSelected();
         }
       }
       if (this.launchedFromClin) {
         this.sendAppAlertCountsToClin()
       }
     },
+
+    onShowAlertsForGene: function(geneName) {
+      let self = this;
+      let alertsForGene = this.geneToAppAlerts[geneName];
+      if (alertsForGene) {
+        alertsForGene.forEach(function(alertToSelect) {
+
+          // Find the location of the alert to select 
+          let itemToSelect = null;
+          let itemsToDeselect = [];
+          for (let i = 0; i < self.appAlerts.length; i++) {
+            let theAlert = self.appAlerts[i];
+            if (alertToSelect && 
+                alertToSelect.type != 'info' &&
+                theAlert.type == alertToSelect.type && 
+                theAlert.message == alertToSelect.message &&
+                theAlert.genes == alertToSelect.genes && 
+                theAlert.details == alertToSelect.details) {
+              itemToSelect = {'index': i, 'alert': theAlert}
+            } else   {
+              let alertFromSameGene = false;
+              // Only deselect alerts for different genes
+              if (alertToSelect.genes) {
+                alertToSelect.genes.split(", ").forEach(function(theGene) {
+                  if (theGene != null && theAlert.genes != null && theAlert.genes.indexOf(theGene) >= 0) {
+                    alertFromSameGene = true;
+                  }
+                })
+              }
+              if (!alertFromSameGene) {
+                itemsToDeselect.push({'index': i, 'alert': theAlert})
+              }
+            }
+          }
+          if (itemToSelect) {
+            let clonedAlert = $.extend({}, itemToSelect.alert)
+            clonedAlert.selected = true;
+            self.appAlerts.splice(itemToSelect.index, 1, clonedAlert)  
+
+            self._refreshGeneToAlerts(clonedAlert)            
+          }
+          // Deselect the alerts. We clone them so that the AlertPanel 
+          // can react to this change
+          itemsToDeselect.forEach(function(itemToDeselect) {
+            let clonedAlert = $.extend({}, itemToDeselect.alert);
+            clonedAlert.selected = false;
+            self.appAlerts.splice(itemToDeselect.index, 1, clonedAlert)
+
+            self._refreshGeneToAlerts(clonedAlert)
+          })
+
+        })
+        if (self.$refs.navRef) {
+          self.$refs.navRef.onShowNotificationDrawerShowSelected();
+        }
+      }
+    },
+
+    _getMatchingAlerts: function(type, message, genes, details) {
+      let self = this;
+      let detailsString = details && Array.isArray(details) ? details.join(",") : "";
+      return self.appAlerts.filter(function(alert) {
+        let alertDetailString = alert.details && Array.isArray(alert.details) ? alert.details.join(",") : "";
+        if (alert.type == type && 
+            alert.message == message &&
+            alert.genes == genes && 
+            alertDetailString == detailsString) {
+          return true;
+        } else {
+          return false;
+        }
+      })
+    },
+
+    _selectAlert: function(alertToSelect) {
+      let self = this;
+      let itemsToDeselect = []
+      let itemToSelect = null;
+
+      // Find the location of the alert to select and the 
+      // locations of the alerts to deselect
+      for (let i = 0; i < self.appAlerts.length; i++) {
+        let theAlert = self.appAlerts[i];
+        if (alertToSelect && 
+            theAlert.type == alertToSelect.type && 
+            theAlert.message == alertToSelect.message &&
+            theAlert.genes == alertToSelect.genes && 
+            theAlert.details == alertToSelect.details) {
+          itemToSelect = {'index': i, 'alert': theAlert}
+        } else {
+          if (theAlert.selected) {
+            itemsToDeselect.push({'index': i, 'alert': theAlert});
+          }          
+        }
+      }
+
+      // Deselect the alerts. We clone them so that the AlertPanel 
+      // can react to this change
+      itemsToDeselect.forEach(function(itemToDeselect) {
+        let clonedAlert = $.extend({}, itemToDeselect.alert);
+        clonedAlert.selected = false;
+        self.appAlerts.splice(itemToDeselect.index, 1, clonedAlert)
+
+        self._refreshGeneToAlerts(clonedAlert)
+      })
+
+      // Select the alert. We clone this alert so that AlertPanel 
+      // can react to this change.
+      if (itemToSelect) {
+        let clonedAlert = $.extend({}, alertToSelect)
+        clonedAlert.selected = true;
+        self.appAlerts.splice(itemToSelect.index, 1, clonedAlert)  
+
+        self._refreshGeneToAlerts(clonedAlert)
+      }
+    },
+
+    _refreshGeneToAlerts: function(clonedAlert) {
+      let self = this;
+
+      // Set the selected field based on the cloned alert
+      if (clonedAlert.genes != null) {
+        clonedAlert.genes.split(", ").forEach(function(geneName) {
+          let alertsForGene = self.geneToAppAlerts[geneName];
+
+          if (alertsForGene) {
+            alertsForGene.forEach(function(a) {
+              if (a.type == clonedAlert.type && 
+                  a.message == clonedAlert.message &&
+                  a.genes == clonedAlert.genes && 
+                  a.details == clonedAlert.details) {
+                a.selected = clonedAlert.selected
+              }
+            })          
+          }
+        })        
+      }
+
+    },
+
+    _getCriticalAlertsForGene: function(geneName) {
+      let self = this;
+      let criticalAlerts = [];
+      let alertsForGene = self.geneToAppAlerts[geneName];
+      if (alertsForGene) {
+        criticalAlerts = alertsForGene.filter(function(a) {
+          return a.type == 'error' || a.selected
+        })
+      }
+      return criticalAlerts;
+    },
+
 
     onAppAlertsSet: function(theAppAlerts) {
       let self = this;
@@ -1913,8 +2180,8 @@ export default {
         self.cacheHelper.on("geneNotAnalyzed", function(geneName) {
           console.log("Gene not analyzed " + geneName)
         });
-        self.cacheHelper.on("alertIssued", function(alertType, message, geneName) {
-          self.addAlert(alertType, message, geneName)
+        self.cacheHelper.on("alertIssued", function(alertType, message, geneName, details, options) {
+          self.addAlert(alertType, message, geneName, details, options)
         });
         self.cacheHelper.on("analyzeAllCompleted", function(infoObject) {
           self.delaySave = 1000;
@@ -2038,7 +2305,7 @@ export default {
         if (self.selectedGene && Object.keys(self.selectedGene).length > 0) {
           self.promiseLoadData()
           .then(function() {
-            self.addAlert("info", "Running with demo data.")
+            self.addAlert("info", "Running with demo data. ")
             if (self.cohortModel && self.cohortModel.isLoaded && !self.isEduMode) {
               self.cacheHelper.analyzeAll(self.cohortModel, false);
             }
@@ -2194,10 +2461,10 @@ export default {
             callback();
           }
         } else {
-          let theMessage = self.isSimpleMode || self.isBasicMode ? 'Enter a gene name.' : 'Enter a gene name or enter a phenotype term.'
+          let theMessage = self.isSimpleMode || self.isBasicMode ? 'Enter a gene name.' : 'Enter a gene name, a gene list, or enter a phenotype term.'
           self.onShowSnackbar( {message: theMessage, timeout: 10000, close: true});
           self.bringAttention = 'gene';
-          if (callback) {4
+          if (callback) {
             callback();
           }
         }
@@ -2444,6 +2711,18 @@ export default {
       this.showWelcome = false;
       self.blacklistedGeneSelected = self.acmgBlacklist[geneName] != null;
 
+      // Show the alert side panel if this gene has errors or is currently 
+      // selected; otherwise, hide the alert side panel.
+      let criticalAlerts = self._getCriticalAlertsForGene(geneName);
+      if (self.$refs.navRef) {
+        if (criticalAlerts.length > 0) {
+          self.onShowAlertsForGene(geneName)
+        } else {
+          self.$refs.navRef.showNotificationDrawer = false;
+        }
+      }
+
+
       return new Promise(function(resolve, reject) {
         if (self.forMyGene2) {
           if (!self.closeIntro) {
@@ -2526,7 +2805,11 @@ export default {
           console.log(error.hasOwnProperty('message') ? error.message : error)
           self.addAlert(error.hasOwnProperty('alertType') ? error.alertType : 'error', 
                         error.hasOwnProperty('message') ? error.message : error,
-                        geneName)
+                        geneName,
+                        null,
+                        error.hasOwnProperty("options") ? error.options : null)
+          let msg = error.hasOwnProperty('message') ? error.message : error;
+          reject(msg)
         })
       })
     },
@@ -2699,63 +2982,42 @@ export default {
             self.geneRegionEnd   = self.selectedGene.end;
           }
 
-          let getMosaicVariantPromise = function(theVariant) {
-            if (self.launchedFromHub) {
-              return self.promiseInitMosaicVariantInterpretation(theVariant)
-            } else {
-              return Promise.resolve(null)
-            }
-          }
 
-          // First, if the app was launched from Mosaic, see if the variant interpretation  
-          // has been saved as a variant annotation.  If so, we will initialize the 
-          // interpretation dropdown to this value.
-          getMosaicVariantPromise(variant)
-          .then(function(mosaicInterpretation) {
-            if (mosaicInterpretation && mosaicInterpretation != 'none') {
-              // Only initialize the interpretation to the mosaic interpretation if 
-              // it hasn't been entered in yet
-              if (variant.interpretation == null || variant.interpretation == '' || variant.interpretation == 'not-reviewed') {
-                variant.interpretation = mosaicInterpretation;
-              }
-            }
+          self.calcFeatureMatrixWidthPercent();
+          self.$set(self, "selectedVariant", variant);
+          self.$set(self, "selectedVariantKey", self.getVariantKey(self.selectedVariant));
+          self.selectedVariantRelationship = sourceRelationship;
+          self.refreshSelectedVariantInfo();
+          self.$set(self, "selectedVariantNotes", self.selectedVariant.notes);
+          self.$set(self, "selectedVariantInterpretation", self.selectedVariant.interpretation);
+          self.showVariantAssessment = false;
+          self.activeGeneVariantTab = self.isBasicMode ? "0" : "1";
 
-            self.calcFeatureMatrixWidthPercent();
-            self.$set(self, "selectedVariant", variant);
-            self.$set(self, "selectedVariantKey", self.getVariantKey(self.selectedVariant));
-            self.selectedVariantRelationship = sourceRelationship;
-            self.refreshSelectedVariantInfo();
-            self.$set(self, "selectedVariantNotes", self.selectedVariant.notes);
-            self.$set(self, "selectedVariantInterpretation", self.selectedVariant.interpretation);
-            self.showVariantAssessment = false;
-            self.activeGeneVariantTab = self.isBasicMode ? "0" : "1";
-
-            self.showVariantExtraAnnots(sourceRelationship ? sourceRelationship : 'proband', variant);
+          self.showVariantExtraAnnots(sourceRelationship ? sourceRelationship : 'proband', variant);
 
 
-            self.getVariantCardRefs().forEach(function(variantCard) {
-              if (sourceComponent === null || variantCard !== sourceComponent) {
-                variantCard.hideVariantCircle(true);
-                variantCard.showVariantCircle(variant, true);
-                variantCard.showCoverageCircle(variant);
-              }
-            })
-
-            if (self.$refs.navRef && self.$refs.navRef.$refs.flaggedVariantsRef) {
-              self.$refs.navRef.$refs.flaggedVariantsRef.deselectVariant();
-            }
-            if (!self.isBasicMode && self.$refs.featureMatrixCardRef) {
-              if (sourceComponent == null || self.$refs.featureMatrixCardRef !== sourceComponent) {
-                self.$refs.featureMatrixCardRef.selectVariant(self.selectedVariant);
-              }
-            }
-            if (self.isEduMode) {
-              self.$refs.appTourRef.checkVariant(variant);
-            }
-            if (self.$refs.scrollButtonRefVariant) {
-              self.$refs.scrollButtonRefVariant.showScrollButtons();
+          self.getVariantCardRefs().forEach(function(variantCard) {
+            if (sourceComponent === null || variantCard !== sourceComponent) {
+              variantCard.hideVariantCircle(true);
+              variantCard.showVariantCircle(variant, true);
+              variantCard.showCoverageCircle(variant);
             }
           })
+
+          if (self.$refs.navRef && self.$refs.navRef.$refs.flaggedVariantsRef) {
+            self.$refs.navRef.$refs.flaggedVariantsRef.deselectVariant();
+          }
+          if (!self.isBasicMode && self.$refs.featureMatrixCardRef) {
+            if (sourceComponent == null || self.$refs.featureMatrixCardRef !== sourceComponent) {
+              self.$refs.featureMatrixCardRef.selectVariant(self.selectedVariant);
+            }
+          }
+          if (self.isEduMode) {
+            self.$refs.appTourRef.checkVariant(variant);
+          }
+          if (self.$refs.scrollButtonRefVariant) {
+            self.$refs.scrollButtonRefVariant.showScrollButtons();
+          }
         })
 
       } else {
@@ -3607,7 +3869,7 @@ export default {
       }
 
       if (self.launchedFromHub) {
-        self.promiseUpdateMosaicInterpretation();
+        self.promiseUpdateMosaicInterpretation(variant);
       }
     },
 
@@ -3637,9 +3899,9 @@ export default {
               // Warn if there wasn't a matching mosaic variant
               if (mosaicVariant == null) {
                 theVariant.mosaic_intepretation = "none"
-                let msg = "Cannot find matching mosaic variant " + theVariant.chrom + " " + theVariant.start + " " + theVariant.ref + "->" + theVariant.alt;
+                let msg = "Unable to initialize variant <pre>Interpretation</pre> annotation because there is no matching Mosaic variant at coordinates <pre>" + theVariant.chrom + " " + theVariant.start + " " + theVariant.ref + "->" + theVariant.alt + "</pre>";
                 console.log(msg);
-                self.addAlert("info", 
+                self.addAlert("warning", 
                                msg + " for gene <pre>" + self.selectedGene.gene_name + "</pre>",
                               self.selectedGene.gene_name )
                 resolve(null)
@@ -3679,102 +3941,105 @@ export default {
         } else {
           self.hubSession.promiseLookupVariantByPosition(self.projectId, theVariant)
           .then(function(mosaicVariant) {
-            resolve(mosaicVariant)
+              resolve(mosaicVariant)
           })
           .catch(function(error) {
             let msg = "Cannot find Mosaic variant in " + 
               "<pre>" + self.selectedGene.gene_name + "</pre>" + 
-              " based on lookup by position " + theVariant.chrom + ":" + theVariant.position;
-            self.addAlert("info", msg, self.selectedGene.gene_name)
+              " based on lookup by position <pre>" + theVariant.chrom + ":" + 
+              theVariant.start + "</pre>";
+            self.addAlert("warning", msg, self.selectedGene.gene_name)
             resolve(null)
           })
         }          
       })
     },
 
-    promiseUpdateMosaicInterpretation() {
+    promiseUpdateMosaicInterpretation(variant) {
       let self = this;
 
       return new Promise(function(resolve, reject) {
 
-        let hasVariantSet = (self.variantSet && self.variantSet.variants)
         let mosaicVariant = null;
 
-        self.promiseGetMosaicVariant(self.selectedVariant)
+        self.promiseGetMosaicVariant(variant)
         .then(function(theMosaicVariant) {
-          mosaicVariant = theMosaicVariant;
-          if (self.selectedVariant.mosaic_id == null || self.selectedVariant.mosaic_id == "") {
-            self.selectedVariant.mosaic_id = mosaicVariant.id;
-          }  
+          if (theMosaicVariant) {
+            mosaicVariant = theMosaicVariant;
+            if (variant.mosaic_id == null || variant.mosaic_id == "") {
+              variant.mosaic_id = mosaicVariant.id;
+            }  
 
-          // Create a variant annotation if one doesn't exist for this Mosaic
-          // project.
-          let existingAnnotation = self.variantAnnotationsMap['Interpretation']
-          let getExistingAnnotPromise = function() {
-            if (!existingAnnotation) {
-              return self.hubSession.promiseCreateInterpretationAnnotation(self.projectId)
-            } else {
-              return Promise.resolve(existingAnnotation);
+            // Create a variant annotation if one doesn't exist for this Mosaic
+            // project.
+            let existingAnnotation = self.variantAnnotationsMap['Interpretation']
+            let getExistingAnnotPromise = function() {
+              if (!existingAnnotation) {
+                return self.hubSession.promiseCreateInterpretationAnnotation(self.projectId)
+              } else {
+                return Promise.resolve(existingAnnotation);
+              }
             }
-          }
 
-          return getExistingAnnotPromise()
+            getExistingAnnotPromise()
+            .then(function(variantAnnotation) {
+
+              self.variantAnnotationsMap[variantAnnotation.name] = variantAnnotation
+
+
+              // Now, check of the variant annotation value already exists. For 'badge' variant 
+              // annotations, we cannot use the update API, but instead have to 
+              // delete the annotation value and then add it.
+              let getDeleteAnnotValuePromise = function() {
+                if (mosaicVariant && mosaicVariant.hasOwnProperty(variantAnnotation.uid) && mosaicVariant[variantAnnotation.uid].length > 0) {
+                  console.log("deleting annotation value " + mosaicVariant[variantAnnotation.uid])
+                  return self.hubSession.promiseDeleteVariantAnnotationValue(self.projectId, 
+                    variant.mosaic_id, variantAnnotation.id, variant.interpretation)
+                } else {
+                  console.log("bypassing delete annotation value")
+                  return Promise.resolve();
+                }
+              }
+
+              getDeleteAnnotValuePromise()
+              .then(function() {
+
+                if (variant.interpretation != 'not-reviewed') {
+                  // Now add the annotation value.
+                  return self.hubSession.promiseAddVariantAnnotationValue(self.projectId, 
+                      variant.mosaic_id, 
+                      variantAnnotation.id, 
+                      self.interpretationMap[variant.interpretation])              
+                } else {
+                  // No need to update a variant annotation when it is not reviewed. Treat  
+                  // this option as 'blank'.
+                  return Promise.resolve()
+                }
+              })
+              .then(function() {
+                // Set the Mosaic variant annotation in memory to the refreshed value
+                if (mosaicVariant) {
+                  let interpretationLabel = self.interpretationMap[variant.interpretation]
+                  mosaicVariant[variantAnnotation.uid] = [interpretationLabel];
+                }
+                resolve();
+
+              })
+              .catch(function(error) {
+                self.addAlert('error', 
+                  'Cannot add Mosaic variant annotation <pre>Interpretation</pre> value.' + error)
+                reject();
+              })
+
+            })
+            .catch(function(error) {
+              self.addAlert('error', 'Cannot create Mosaic variant annotation <pre>Interpretation</pre>. ', self.selectedGene.gene_name, [error])
+              reject();
+            })
+          } 
 
         })
-        .then(function(variantAnnotation) {
 
-          self.variantAnnotationsMap[variantAnnotation.name] = variantAnnotation
-
-
-          // Now, check of the variant annotation value already exists. For 'badge' variant 
-          // annotations, we cannot use the update API, but instead have to 
-          // delete the annotation value and then add it.
-          let getDeleteAnnotValuePromise = function() {
-            if (mosaicVariant && mosaicVariant.hasOwnProperty(variantAnnotation.uid) && mosaicVariant[variantAnnotation.uid].length > 0) {
-              console.log("deleting annotation value " + mosaicVariant[variantAnnotation.uid])
-              return self.hubSession.promiseDeleteVariantAnnotationValue(self.projectId, 
-                self.selectedVariant.mosaic_id, variantAnnotation.id, self.selectedVariant.interpretation)
-            } else {
-              console.log("bypassing delete annotation value")
-              return Promise.resolve();
-            }
-          }
-
-          getDeleteAnnotValuePromise()
-          .then(function() {
-
-            if (self.selectedVariant.interpretation != 'not-reviewed') {
-              // Now add the annotation value.
-              return self.hubSession.promiseAddVariantAnnotationValue(self.projectId, 
-                  self.selectedVariant.mosaic_id, 
-                  variantAnnotation.id, 
-                  self.interpretationMap[self.selectedVariant.interpretation])              
-            } else {
-              // No need to update a variant annotation when it is not reviewed. Treat  
-              // this option as 'blank'.
-              return Promise.resolve()
-            }
-          })
-          .then(function() {
-            // Set the Mosaic variant annotation in memory to the refreshed value
-            if (mosaicVariant) {
-              let interpretationLabel = self.interpretationMap[self.selectedVariant.interpretation]
-              mosaicVariant[variantAnnotation.uid] = [interpretationLabel];
-            }
-            resolve();
-
-          })
-          .catch(function(error) {
-            self.addAlert('error', 
-              'Cannot add Mosaic variant annotation <pre>Interpretation</pre> value.' + error)
-            reject();
-          })
-
-        })
-        .catch(function(error) {
-          self.addAlert('error', 'Cannot create Mosaic variant annotation <pre>Interpretation</pre>. ' + error, self.selectedGene.gene_name)
-          reject();
-        })
 
       })
     },
@@ -3782,17 +4047,21 @@ export default {
     promiseLoadVariantAnnotationsMap() {
       let self = this;
       return new Promise(function(resolve, reject) {
-        self.hubSession.promiseGetVariantAnnotations(self.projectId)
-        .then(function(variantAnnotations) {
-          self.variantAnnotationsMap = {};
-          variantAnnotations.forEach(function(variantAnnotation) {
-            self.variantAnnotationsMap[variantAnnotation.name] = variantAnnotation;
+        if (self.projectId) {
+          self.hubSession.promiseGetVariantAnnotations(self.projectId)
+          .then(function(variantAnnotations) {
+            self.variantAnnotationsMap = {};
+            variantAnnotations.forEach(function(variantAnnotation) {
+              self.variantAnnotationsMap[variantAnnotation.name] = variantAnnotation;
+            })
+            resolve();
           })
-          resolve();
-        })
-        .catch(function(error) {
-          reject(error)
-        })
+          .catch(function(error) {
+            reject(error)
+          })          
+        } else {
+          resolve(null)
+        }
       })
     },
 
@@ -3874,84 +4143,60 @@ export default {
 
               if (matchingVariant && !matchingVariant.isProxy) {
 
-                let getMosaicVariantPromise = function(theFlaggedVariant) {
-                  if (self.launchedFromHub) {
-                    return self.promiseInitMosaicVariantInterpretation(theFlaggedVariant)
-                  } else {
-                    return Promise.resolve(null)
-                  }
+
+                var isUserFlagged = flaggedVariant.isUserFlagged;
+                var notes = flaggedVariant.notes;
+                var interpretation = flaggedVariant.interpretation;
+                flaggedVariant = $.extend(flaggedVariant, matchingVariant);
+                flaggedVariant.isFlagged = true;
+                flaggedVariant.isUserFlagged = isUserFlagged;
+                flaggedVariant.notes = notes;
+                flaggedVariant.interpretation = interpretation;
+                flaggedVariant.isProxy = false;
+
+                self.$set(self, "selectedVariant", flaggedVariant);
+                self.refreshSelectedVariantInfo();
+                self.$set(self, "selectedVariantRelationship", "proband");
+                self.$set(self, "selectedVariantKey", self.getVariantKey(flaggedVariant));
+                self.$set(self, "selectedVariantNotes", flaggedVariant.notes);
+                self.$set(self, "selectedVariantInterpretation", flaggedVariant.interpretation);
+                self.showVariantAssessment = false;
+
+                self.showVariantExtraAnnots('proband', self.selectedVariant);
+
+                if (self.launchedFromHub) {
+                  self.promiseInitMosaicVariantInterpretation(self.selectedVariant);
                 }
 
-                // First, if the app was launched from Mosaic, see if the variant interpretation  
-                // has been saved as a variant annotation.  If so, we will initialize the 
-                // interpretation dropdown to this value.
-                getMosaicVariantPromise(flaggedVariant)
-                .then(function(mosaicInterpretation) {
-                  if (mosaicInterpretation && mosaicInterpretation != 'none') {
-                    // Only initialize the interpretation to the mosaic interpretation if 
-                    // it hasn't been entered in yet
-                    if (flaggedVariant.interpretation == null || flaggedVariant.interpretation == '' || flaggedVariant.interpretation == 'not-reviewed') {
-                      flaggedVariant.interpretation = mosaicInterpretation;
-                      if (self.$refs.navRef && self.$refs.navRef.$refs.flaggedVariantsRef) {
-                        self.$refs.navRef.$refs.flaggedVariantsRef.populateGeneLists();
-                      }
-                    }
-                  }
-                  var isUserFlagged = flaggedVariant.isUserFlagged;
-                  var notes = flaggedVariant.notes;
-                  var interpretation = flaggedVariant.interpretation;
-                  flaggedVariant = $.extend(flaggedVariant, matchingVariant);
-                  flaggedVariant.isFlagged = true;
-                  flaggedVariant.isUserFlagged = isUserFlagged;
-                  flaggedVariant.notes = notes;
-                  flaggedVariant.interpretation = interpretation;
-                  flaggedVariant.isProxy = false;
+                self.$refs.variantCardProbandRef.showFlaggedVariant(flaggedVariant);
 
-                  self.$set(self, "selectedVariant", flaggedVariant);
-                  self.refreshSelectedVariantInfo();
-                  self.$set(self, "selectedVariantRelationship", "proband");
-                  self.$set(self, "selectedVariantKey", self.getVariantKey(flaggedVariant));
-                  self.$set(self, "selectedVariantNotes", flaggedVariant.notes);
-                  self.$set(self, "selectedVariantInterpretation", flaggedVariant.interpretation);
-                  self.showVariantAssessment = false;
-
-                  self.showVariantExtraAnnots('proband', self.selectedVariant);
-
-                  if (self.launchedFromHub) {
-                    self.promiseInitMosaicVariantInterpretation(self.selectedVariant);
-                  }
-
-                  self.$refs.variantCardProbandRef.showFlaggedVariant(flaggedVariant);
-
-                  if (!self.isBasicMode && self.$refs.featureMatrixCardRef) {
-                    self.$refs.featureMatrixCardRef.selectVariant(flaggedVariant);
-                  }
+                if (!self.isBasicMode && self.$refs.featureMatrixCardRef) {
+                  self.$refs.featureMatrixCardRef.selectVariant(flaggedVariant);
+                }
 
 
-                  self.getVariantCardRefs().forEach(function(variantCard) {
-                      variantCard.showVariantCircle(flaggedVariant, true);
-                      variantCard.showCoverageCircle(flaggedVariant);
-                  })
-
-
-                  self.activeGeneVariantTab = self.isBasicMode ? "0" : "1";
-                  if (self.$refs.variantInspectRef) {
-                    self.$refs.variantInspectRef.refresh();
-                  }
-
-                  //setTimeout(function() {
-                  //  if ($('#variant-inspect-and-notes').length > 0) {
-                  //    $('#variant-inspect-and-notes')[0].scrollIntoView();
-                  //  }
-                  //},500)
-
-
-                  if (callback) {
-                    callback();
-                  }
-
-
+                self.getVariantCardRefs().forEach(function(variantCard) {
+                    variantCard.showVariantCircle(flaggedVariant, true);
+                    variantCard.showCoverageCircle(flaggedVariant);
                 })
+
+
+                self.activeGeneVariantTab = self.isBasicMode ? "0" : "1";
+                if (self.$refs.variantInspectRef) {
+                  self.$refs.variantInspectRef.refresh();
+                }
+
+                // Scroll down so that the variant inspect card (and the variant all card)
+                // are in view
+                setTimeout(function() {
+                  self.scrollToVariantInspectCard()                  
+                },50)
+
+                if (callback) {
+                  callback();
+                }
+
+
               }
 
             })
@@ -3968,6 +4213,19 @@ export default {
       .catch(function(error) {
         self.addAlert('error', error, flaggedVariant.gene)
       })
+    },
+    scrollToVariantInspectCard: function() {
+      if ($('#variant-inspect-and-notes').length > 0) {
+        let el = $('#variant-inspect-and-notes')[0]
+        const { top, left, bottom, right } = el.getBoundingClientRect();
+        const { innerHeight, innerWidth } = window;
+        let isVisible = top >= 0 && left >= 0 && bottom <= innerHeight && right <= innerWidth;
+        if (!isVisible) {
+          let y = window.pageYOffset + (bottom - innerHeight);
+          let parentElem = $('.container.fluidMax')[0]
+          parentElem.scrollTo({top: y, behavior: 'smooth'})
+        }
+      }
     },
     onHideSettingsDialog: function() {
       this.settingsCoverageOnly = false;
@@ -4513,7 +4771,7 @@ export default {
         self.onApplyGenes(new_genes.join(), options);
       } else if (clinObject.type == 'show-notifications') {
         if (self.$refs.navRef) {
-          self.$refs.navRef.onShowNotificationDrawerShowLast();
+          self.$refs.navRef.onShowNotificationDrawerShowSelected();
         }
       }
       let responseObject = {success: true, type: 'message-received', sender: 'gene.iobio.io'};
@@ -4762,8 +5020,10 @@ export default {
           resolve();
         })
         .catch(function(error) {
+          console.log(error)
           reject(error);
         })
+
 
       })
     },
@@ -4828,36 +5088,41 @@ export default {
 
         // Find first flagged variant in list
         let firstFlaggedVariant = null;
-        let sortedFilters = self.cohortModel.organizeVariantsByFilterAndGene(null, self.isFullAnalysis);
-        sortedFilters.forEach(function(filterObject) {
-          filterObject.genes.forEach(function(geneList) {
-            if (!firstFlaggedVariant && geneList.variants && geneList.variants.length > 0) {
-              firstFlaggedVariant = geneList.variants[0];
-            }
-          })
-        })
-        if ((self.paramAnalysisId || self.paramVariantSetId || !self.geneClicked) && firstFlaggedVariant &&  (!self.selectedGene || getGeneName(firstFlaggedVariant) !== self.selectedGene.gene_name)) {
-          self.promiseLoadGene(getGeneName(firstFlaggedVariant))
-            .then(function() {
-              self.toClickVariant = firstFlaggedVariant;
-              self.showLeftPanelWhenFlaggedVariants("send-to-clin");
-              self.onFlaggedVariantSelected(firstFlaggedVariant, {'forceGeneSelection': true}, function() {
-              resolve()
-              self.cacheHelper.analyzeAllInProgress = false;
+        self.cohortModel.promiseOrganizeVariantsByFilterAndGene(null, self.isFullAnalysis)
+        .then(function(sortedFilters) {
+
+          sortedFilters.forEach(function(filterObject) {
+            filterObject.genes.forEach(function(geneList) {
+              if (!firstFlaggedVariant && geneList.variants && geneList.variants.length > 0) {
+                firstFlaggedVariant = geneList.variants[0];
+              }
             })
           })
-        }
-        else if(firstFlaggedVariant && getGeneName(firstFlaggedVariant) === self.selectedGene.gene_name){
-          self.toClickVariant = firstFlaggedVariant;
-          self.showLeftPanelWhenFlaggedVariants();
-          self.onFlaggedVariantSelected(firstFlaggedVariant, {'forceGeneSelection': true}, function() {
-            resolve()
-          })
-        }
-        else {
-          self.showLeftPanelWhenFlaggedVariants();
-          resolve();
-        }
+          if ((self.paramAnalysisId || self.paramVariantSetId || !self.geneClicked) && firstFlaggedVariant &&  (!self.selectedGene || getGeneName(firstFlaggedVariant) !== self.selectedGene.gene_name)) {
+            self.promiseLoadGene(getGeneName(firstFlaggedVariant))
+              .then(function() {
+                self.toClickVariant = firstFlaggedVariant;
+                self.showLeftPanelWhenFlaggedVariants("send-to-clin");
+                self.onFlaggedVariantSelected(firstFlaggedVariant, {'forceGeneSelection': true}, function() {
+                resolve()
+                self.cacheHelper.analyzeAllInProgress = false;
+              })
+            })
+          }
+          else if(firstFlaggedVariant && getGeneName(firstFlaggedVariant) === self.selectedGene.gene_name){
+            self.toClickVariant = firstFlaggedVariant;
+            self.showLeftPanelWhenFlaggedVariants();
+            self.onFlaggedVariantSelected(firstFlaggedVariant, {'forceGeneSelection': true}, function() {
+              resolve()
+            })
+          }
+          else {
+            self.showLeftPanelWhenFlaggedVariants();
+            resolve();
+          }
+          
+
+        })
 
       })
     },
@@ -5061,8 +5326,16 @@ export default {
         };
         window.parent.postMessage(JSON.stringify(msgObject), self.clinIobioUrl);
       }
-    }
+    },
+
+    onVariantAnnotationSelected(selectedInfo, selectedFormat, selectedMosaicVariantAnnotations, selectedAll) {
+      this.selectedInfo = selectedInfo;
+      this.selectedFormat = selectedFormat;
+      this.selectedMosaic = selectedMosaicVariantAnnotations;
+      this.selectedAll = selectedAll;
+    },
 
   }
 }
 </script>
+
