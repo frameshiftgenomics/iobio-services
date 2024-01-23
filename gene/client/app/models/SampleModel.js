@@ -40,6 +40,8 @@ class SampleModel {
     this.affectedStatus = null;
     this.sex = null;
 
+    this.hpoTerms = null;
+
     this.cohort = null;
 
     this.debugMe = false;
@@ -607,10 +609,10 @@ class SampleModel {
   }
 
 
-  promiseSummarizeDanger(geneObject, theVcfData, options, geneCoverageAll, filterModel, transcript, notFoundVariants=null) {
+  promiseSummarizeDanger(geneObject, theVcfData, options, geneCoverageAll, filterModel, transcript, notFoundVariants=null, dangerSummaryExisting=null) {
     var me = this;
     return new Promise(function(resolve, reject) {
-      var dangerSummary = SampleModel._summarizeDanger(geneObject.gene_name, theVcfData, options, geneCoverageAll, filterModel, me.getTranslator(), me.getAnnotationScheme(), transcript);
+      var dangerSummary = SampleModel._summarizeDanger(geneObject.gene_name, theVcfData, options, geneCoverageAll, filterModel, me.getTranslator(), me.getAnnotationScheme(), transcript, me.isAlignmentsOnly());
       
       me.cohort.captureFlaggedVariants(dangerSummary, geneObject)
 
@@ -621,13 +623,89 @@ class SampleModel {
         dangerSummary.badges.notFound = notFoundVariants;
       }
 
-      me.promiseCacheDangerSummary(dangerSummary, geneObject.gene_name).then(function() {
-        resolve(dangerSummary);
-      },
-      function(error) {
-        reject(error);
-      })
+      var isDirty = true;
+      if (dangerSummaryExisting) {
+        isDirty = me._isDifferentDangerSummary(dangerSummaryExisting, dangerSummary)
+      }
+
+      if (isDirty) {
+        me.promiseCacheDangerSummary(dangerSummary, geneObject.gene_name)
+        .then(function() {
+          resolve({'dangerSummary': dangerSummary, 'isDirty': true});
+        },
+        function(error) {
+          reject(error);
+        })
+      } else {
+        resolve({'dangerSummary': dangerSummary, 'isDirty': false})
+      }
     })
+  }
+
+  _isDifferentDangerSummary(ds1, ds2) {
+    let self = this;
+    let match = true;
+    ['CALLED', 'GENECOVERAGE','AF', 'CLINVAR', 'CONSEQUENCE', 'IMPACT', 'INHERITANCE', 'calledCount', 'loadedCount', 'isAlignmentsOnly']
+    .forEach(function(field) {
+      if (ds1.hasOwnProperty(field) 
+        && ds2.hasOwnProperty(field)
+        && ds1[field]
+        && ds2[field] 
+        && typeof ds1[field] == 'object' 
+        && typeof ds2[field] == 'object') {
+        if (JSON.toString(ds1[field]) != JSON.toString(ds2[field])) {
+          match = false;
+        }        
+      } else {
+        if (ds1[field] != ds2[field]) {
+          match = false;
+        }    
+      }
+    })
+    if (match) {
+      Object.keys(self.cohort.filterModel.flagCriteria).forEach(function(filter) {
+        if (match) {
+          let length1 = ds1.badges[filter] ? ds1.badges[filter].length : 0;
+          let length2 = ds2.badges[filter] ? ds2.badges[filter].length : 0;
+
+          let variants1 = [];
+          if (ds1.badges[filter]) {
+            variants1 = ds1.badges[filter].map(function(variant) {
+              if (variant) {
+                let variantNotes = variant.notes ? variant.notes.map(function(elem) {
+                  return elem.note;
+                }).join(",") : "";
+                return variant.start + "-" + variant.ref + "-" +  variant.alt
+                       + "-" + variant.interpretation + "-" + variantNotes; 
+              } else {
+                return "?"
+              }
+            })
+          }
+          let variants2 = [];
+          if (ds2.badges[filter]) {
+            variants2 = ds2.badges[filter].map(function(variant) {
+              if (variant) {
+                let variantNotes = variant.notes ? variant.notes.map(function(elem) {
+                  return elem.note;
+                }).join(",") : "";
+                return variant.start + "-" + variant.ref + "-" +  variant.alt
+                       + "-" + variant.interpretation + "-" + variantNotes; 
+              } else {
+                return "?"
+              }
+            })
+          }
+
+          if (length1 != length2) {
+            match = false;
+          } else if (variants1.join(",") != variants2.join(",")) {
+            match = false;
+          }    
+        }
+      })
+    } 
+    return !match;
   }
 
   promiseSummarizeError(geneName, error) {
@@ -791,7 +869,18 @@ class SampleModel {
 
 
   getSampleName() {
-    return this.sampleName;
+    let self = this;
+    if (this.sampleName) {
+      return this.sampleName;
+    } else if (this.isAlignmentsOnly()) {
+      let sampleName = self.bam.getHeaderSample();
+      if (sampleName == null || sampleName.length == 0) {
+        sampleName = self.relationship;        
+      }
+      return sampleName;
+    } else {
+      return self.relationship;
+    }
   }
 
   getVcfSampleName() {
@@ -1077,6 +1166,7 @@ class SampleModel {
           resolve();
         }
       } else {
+        
         me.vcfRefNamesMap = {};
         let currVcf = me.vcf;
         if (sfariMode) {
@@ -1121,7 +1211,8 @@ class SampleModel {
          })
          .catch(function(error) {
             reject(error)
-         })
+         })        
+       
       }
     });
 
@@ -1873,6 +1964,8 @@ class SampleModel {
       let isBackground = options.isBackground;
       let refName = null;
 
+
+
       me._promiseVcfRefName(theGene.chr)
       .then( function() {
         refName = me.getVcfRefName(theGene.chr);
@@ -1901,7 +1994,7 @@ class SampleModel {
 
         Promise.all(promises)
         .then(function() {
-          if (Object.keys(resultMap).length === variantModels.length) {
+          if (Object.keys(resultMap).length === variantModels.length || me.isAlignmentsOnly()) {
             resolve(resultMap);
           } else {
 
@@ -2545,49 +2638,102 @@ class SampleModel {
 
   }
 
+  getBamDepthAtVariantPosition(variant, coverage) {
+
+    let covIter = 0;
+    let matchingCoverage = null;
+    let currCoverage = null;
+    let nextCoverage = null;
+    for (; covIter < coverage.length && !matchingCoverage && coverage[covIter][0] <= variant.start; 
+         ) {
+
+      currCoverage = coverage[covIter]
+      nextCoverage = (covIter < coverage.length - 1) ? coverage[covIter+1] : null;
+
+      // Variant matches coverage when variant.start == coverage position
+      // or variant.start is between coverage and nextCoverage positions.
+      if (variant.start == currCoverage[0]) {
+        matchingCoverage = currCoverage;
+      } else if (nextCoverage && 
+        (variant.start >= currCoverage[0] && variant.start < nextCoverage[0]) ) {
+        matchingCoverage = currCoverage;
+      }
+      covIter++;
+    }
+
+    if (matchingCoverage) {
+      return matchingCoverage[1];
+    } else {
+      return null;
+    }
+  }
+
   _refreshVariantsWithCoverage(theVcfData, coverage, callback) {
     var me = this;
-    var vcfIter = 0;
-    var covIter = 0;
     if (theVcfData == null || coverage == null) {
       callback();
     }
-    var recs = theVcfData.features;
 
-      me.flagDupStartPositions(recs);
+    let theVariants = theVcfData.features;
 
-    for( var vcfIter = 0, covIter = 0; vcfIter < recs.length; null) {
-      // Bypass duplicates
-      if (recs[vcfIter].dup) {
-        recs[vcfIter].bamDepth = recs[vcfIter-1].bamDepth;
-        vcfIter++;
+    let vcfIter = 0;
+    let covIter = 0;
+    let currCoverage = null;
+    let nextCoverage = null;
+
+    // Iterate through the variants, advancing the index by one each loop. In the case
+    // of multiple variants with the same start position, we advance the index
+    // multiple times (for each duplicate)
+    for(; vcfIter < theVariants.length;) {
+      let variant = theVariants[vcfIter];
+      let nextVariant = (vcfIter < theVariants.length - 1) ? theVariants[vcfIter+1] : null;
+
+      let matchingCoverage = null;
+
+      // Keep iterating through the coverage records until there are no more
+      // coverage records, we found a coverage interval for the variant, or
+      // we have advanced past a coverage position that is beyond the variant's
+      // start position
+      //
+      // coverage is a 2 element array: first element=pos, second element=depth
+      //
+      for (; covIter < coverage.length && !matchingCoverage && coverage[covIter][0] <= variant.start; 
+           ) {
+
+        currCoverage = coverage[covIter]
+        nextCoverage = (covIter < coverage.length - 1) ? coverage[covIter+1] : null;
+
+        // Variant matches coverage when variant.start == coverage position
+        // or variant.start is between coverage and nextCoverage positions.
+        if (variant.start == currCoverage[0]) {
+          matchingCoverage = currCoverage;
+        } else if (nextCoverage && 
+          (variant.start >= currCoverage[0] && variant.start < nextCoverage[0]) ) {
+          matchingCoverage = currCoverage;
+        }
+
+        if (!matchingCoverage) {
+          covIter++;
+        }
       }
-      if (vcfIter >= recs.length) {
 
+      // We found a coverage that spans the interval that contains 
+      // the variant start position
+      if (matchingCoverage) {
+        variant.bamDepth = matchingCoverage[1];
+
+        // If the next variant has the same start position,
+        // don't advance to the next coverage as it will match
+        // the variant on the next variant iteration
+        if (nextVariant && nextVariant.dup) {
+          //console.log("when finding matching bam depth record, we encountered a variant w the same start position " + variant.start)
+        } 
       } else {
-            if (covIter >= coverage.length) {
-              recs[vcfIter].bamDepth = "";
-              vcfIter++;
-          } else {
-          var coverageRow = coverage[covIter];
-          var coverageStart = coverageRow[0];
-          var coverageDepth = coverageRow[1];
-
-          // compare curr variant and curr coverage record
-          if (recs[vcfIter].start == coverageStart) {
-            recs[vcfIter].bamDepth = +coverageDepth;
-            vcfIter++;
-            covIter++;
-          } else if (recs[vcfIter].start < coverageStart) {
-            recs[vcfIter].bamDepth = "";
-            vcfIter++;
-          } else {
-            //console.log("no variant corresponds to coverage at " + coverageStart);
-            covIter++;
-          }
-
-            }
+        console.log("no matching coverage record for variant at start pos " + variant.start + " for gene " + theVcfData.gene)
       }
+
+      // Advance to next variant
+      vcfIter++;
 
     }
     if (!theVcfData.hasOwnProperty('loadState')) {
@@ -2595,9 +2741,9 @@ class SampleModel {
     }
     theVcfData.loadState['coverage'] = true;
     callback();
-
-
   }
+
+ 
 
   _refreshVariantsWithVariantIds(theVcfData, annotatedVcfData) {
 
@@ -2993,20 +3139,13 @@ class SampleModel {
 
 
 
-  filterVariants(data, filterObject, start, end, bypassRangeFilter) {
+  filterVariants(data, filterObject, start, end, bypassRangeFilter, filterModel) {
     var me = this;
 
     if (data == null || data.features == null) {
       console.log("Empty data/features");
       return;
     }
-
-    if (me.relationship === 'known-variants') {
-      return me.filterKnownVariants(data, start, end, bypassRangeFilter);
-    } else if (me.relationship === 'sfari-variants') {
-      return me.filterSfariVariants(data, start, end, bypassRangeFilter);
-    }
-
 
     var impactField = me.getAnnotationScheme().toLowerCase() === 'snpeff' ? 'impact' : me.globalApp.impactFieldToFilter;
     var effectField = me.getAnnotationScheme().toLowerCase() === 'snpeff' ? 'effect' : 'vepConsequence';
@@ -3233,7 +3372,7 @@ class SampleModel {
   filterKnownVariants(data, start, end, bypassRangeFilter, filterModel) {
     var me = this;
 
-    var theFilters = filterModel.getModelSpecificFilters('known-variants').filter(function(theFilter) {
+    var theFilters = filterModel.modelFilters['known-variants'].filter(function(theFilter) {
       return theFilter.value == true;
     })
 
@@ -3517,19 +3656,29 @@ class SampleModel {
 }
 
 
-SampleModel._summarizeDanger = function(geneName, theVcfData, options = {}, geneCoverageAll, filterModel, translator, annotationScheme, transcript) {
+SampleModel._summarizeDanger = function(geneName, theVcfData, options = {}, geneCoverageAll, filterModel, translator, annotationScheme, transcript, isAlignmentsOnly) {
   var dangerCounts = $().extend({}, options);
+
+  // For comparing danger summaries, we need to make sure this field is always initialized
+  // the same way so that it doesn't show up as different (and needing to be cached)
+  // when in fact it is the same.
+  if (dangerCounts.CALLED == null) {
+    dangerCounts.CALLED = false;
+  }
   dangerCounts.CONSEQUENCE = {};
   dangerCounts.IMPACT = {};
   dangerCounts.CLINVAR = {};
   dangerCounts.INHERITANCE = {};
   dangerCounts.AF = {};
   dangerCounts.featureCount = 0;
+  //if (options && options.CALLED && ) {
+    dangerCounts.calledCount  = 0;
+  //}
   dangerCounts.loadedCount  = 0;
-  dangerCounts.calledCount  = 0;
   dangerCounts.harmfulVariantsInfo = [];
   dangerCounts.failedFilter = false;
   dangerCounts.geneName = geneName;
+  dangerCounts.isAlignmentsOnly = isAlignmentsOnly;
 
   SampleModel.summarizeDangerForGeneCoverage(dangerCounts, geneCoverageAll, filterModel, transcript);
 
@@ -3677,10 +3826,12 @@ SampleModel._summarizeDanger = function(geneName, theVcfData, options = {}, gene
     var bypassZyg = SampleModel.isZygosityToBypass(d, 'proband');
     return (!d.hasOwnProperty("fbCalled") || d.fbCalled != 'Y') && !bypassZyg;
   }).length;
-  dangerCounts.calledCount  = theVcfData.features.filter(function(d) {
-    var bypassZyg = SampleModel.isZygosityToBypass(d, 'proband');
-    return d.hasOwnProperty("fbCalled") && d.fbCalled == 'Y' && !bypassZyg;
-  }).length;
+  //if (options && options.CALLED) {
+    dangerCounts.calledCount  = theVcfData.features.filter(function(d) {
+      var bypassZyg = SampleModel.isZygosityToBypass(d, 'proband');
+      return d.hasOwnProperty("fbCalled") && d.fbCalled == 'Y' && !bypassZyg;
+    }).length;    
+  //}
 
   // Indicate if the gene pass the filter (if applicable)
   dangerCounts.failedFilter = filterModel.hasFilters() && dangerCounts.featureCount == 0;
