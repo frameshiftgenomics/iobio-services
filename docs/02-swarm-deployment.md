@@ -102,7 +102,7 @@ chmod 600 letsencrypt/acme.json
 
 ### Verify sqlite cache volume is populated
 
-The sqlite cache is available as an EBS snapshot. As of 6/15/23, the snapshot ID is `snap-04f8d38b67a70960a`.
+The sqlite cache is available as an EBS snapshot. As of 1/24/24, the snapshot ID is `snap-00b07ba3e7a45a5e8`.
 
 1. Create a new EBS volume from the snapshot above
 1. Attach the volume to the EC2 instance via the AWS console
