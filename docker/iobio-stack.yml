@@ -1,12 +1,9 @@
-# Stack to deploy the iobio apps behind traefik on proxy network.
+# Stack to deploy the iobio apps
 #
 # - gene.iobio client app
 # - gru.iobio api
 #
-# Prerequisites - Must complete before launching stack
-#
-# 1. Launch the traefik stack
-# 2. Replace all instances of example frameshift domains (iobio.frameshift.io)
+# This deployment is different as it does not use the traefik proxy
 
 version: "3.9"
 
@@ -15,37 +12,41 @@ services:
   gene:
     image: ${GENE_REPOSITORY}
     networks:
-      - proxy
+      - frontend
+    ports:
+      - "8181:80"
     deploy:
       replicas: 1
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.gene.rule=Host(`iobio.frameshift.io`)"
-        - "traefik.http.routers.gene.entrypoints=websecure"
-        - "traefik.http.routers.gene.tls=true"
-        - "traefik.http.routers.gene.tls.certresolver=leresolver"
-        - "traefik.http.services.gene.loadbalancer.server.port=80"
+      # labels:
+      #   - "traefik.enable=true"
+      #   - "traefik.http.routers.gene.rule=Host(`iobio.frameshift.io`)"
+      #   - "traefik.http.routers.gene.entrypoints=websecure"
+      #   - "traefik.http.routers.gene.tls=true"
+      #   - "traefik.http.routers.gene.tls.certresolver=leresolver"
+      #   - "traefik.http.services.gene.loadbalancer.server.port=80"
 
   gru:
     image: ${GRU_REPOSITORY}
     networks:
-      - proxy
+      - frontend
+    # ports:
+    #   - "9001:9001"
     volumes:
       - ../sqlite/gru_data_1.11.0/:/gru_data
     deploy:
       replicas: 2
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.gru.rule=Host(`iobio.frameshift.io`) && PathPrefix(`/api/`)"
-        - "traefik.http.routers.gru.entrypoints=websecure"
-        - "traefik.http.routers.gru.tls=true"
-        - "traefik.http.routers.gru.tls.certresolver=leresolver"
-        - "traefik.http.routers.gru.middlewares=strip-api-prefix,gru-compress"
-        - "traefik.http.middlewares.strip-api-prefix.stripprefix.prefixes=/api"
-        - "traefik.http.middlewares.strip-api-prefix.stripprefix.forceslash=false"
-        - "traefik.http.middlewares.gru-compress.compress=true"
-        - "traefik.http.services.gru.loadbalancer.server.port=9001"
+      # labels:
+      #   - "traefik.enable=true"
+      #   - "traefik.http.routers.gru.rule=Host(`iobio.frameshift.io`) && PathPrefix(`/api/`)"
+      #   - "traefik.http.routers.gru.entrypoints=websecure"
+      #   - "traefik.http.routers.gru.tls=true"
+      #   - "traefik.http.routers.gru.tls.certresolver=leresolver"
+      #   - "traefik.http.routers.gru.middlewares=strip-api-prefix,gru-compress"
+      #   - "traefik.http.middlewares.strip-api-prefix.stripprefix.prefixes=/api"
+      #   - "traefik.http.middlewares.strip-api-prefix.stripprefix.forceslash=false"
+      #   - "traefik.http.middlewares.gru-compress.compress=true"
+      #   - "traefik.http.services.gru.loadbalancer.server.port=9001"
 
 networks:
-  proxy:
-    external: true
+  frontend:
+#     external: true
