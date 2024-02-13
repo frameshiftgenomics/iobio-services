@@ -29,8 +29,8 @@ services:
     image: ${GRU_REPOSITORY}
     networks:
       - frontend
-    # ports:
-    #   - "9001:9001"
+    ports:
+      - "9001:9001"
     volumes:
       - ../sqlite/gru_data_1.11.0/:/gru_data
     deploy:
