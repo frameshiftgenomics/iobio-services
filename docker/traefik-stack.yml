@@ -1,9 +1,8 @@
 # A simple proxy using a single traefik container.
+# Disable TLS as this deployment is meant to be run behind an AWS ALB. (Ignore any TLS config)
 #
 # - Automatic dynamic routing to services
-# - Listens on port 80 & 443
-# - Redirects port 80 -> 443
-# - Secure dashboard
+# - Listens on port 80
 #
 # See additional notes at end of file.
 
@@ -20,7 +19,7 @@ services:
       # - --log.level=DEBUG
       # Listen on http & https
       - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
+      # - --entrypoints.websecure.address=:443
       # Enable the docker provider & docker swarm mode
       - --providers.docker=true
       - --providers.docker.swarmmode=true
@@ -32,17 +31,17 @@ services:
       - --api=true
       # TLS - Configure the tls letsencrypt challenge with our custom resolver
       # Replace with your letsencrypt email
-      - --certificatesresolvers.leresolver.acme.email=info@frameshift.io
-      - --certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json
-      - --certificatesresolvers.leresolver.acme.tlschallenge=true
+      # - --certificatesresolvers.leresolver.acme.email=info@frameshift.io
+      # - --certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json
+      # - --certificatesresolvers.leresolver.acme.tlschallenge=true
       # Comment out this line after testing to use the production server and obtain a valid certificate
-      - --certificatesresolvers.leresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
+      # - --certificatesresolvers.leresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
     ports:
-      - "80:80"
-      - "443:443"
+      - "8181:80"
+      # - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ../letsencrypt:/letsencrypt
+      # - ../letsencrypt:/letsencrypt
     deploy:
       replicas: 1
       placement:
@@ -51,22 +50,22 @@ services:
       labels:
         - "traefik.enable=true"
         # Dashboard
-        - "traefik.http.routers.traefik.rule=Host(`traefik.frameshift.io`)"
-        - "traefik.http.routers.traefik.service=api@internal"
-        - "traefik.http.routers.traefik.tls.certresolver=leresolver"
-        - "traefik.http.routers.traefik.entrypoints=websecure"
-        - "traefik.http.routers.traefik.middlewares=authtraefik"
-        - "traefik.http.middlewares.authtraefik.basicauth.users=user:$$apr1$$q8eZFHjF$$Fvmkk//V6Btlaf2i/ju5n/" # user/password
-        - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+        # - "traefik.http.routers.traefik.rule=Host(`traefik.frameshift.io`)"
+        # - "traefik.http.routers.traefik.service=api@internal"
+        # - "traefik.http.routers.traefik.tls.certresolver=leresolver"
+        # - "traefik.http.routers.traefik.entrypoints=websecure"
+        # - "traefik.http.routers.traefik.middlewares=authtraefik"
+        # - "traefik.http.middlewares.authtraefik.basicauth.users=user:$$apr1$$q8eZFHjF$$Fvmkk//V6Btlaf2i/ju5n/" # user/password
+        # - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
         # Global redirect to https
-        - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
-        - "traefik.http.routers.http-catchall.entrypoints=web"
-        - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+        # - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+        # - "traefik.http.routers.http-catchall.entrypoints=web"
+        # - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
 
         # Middleware redirect
-        - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-        - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+        # - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+        # - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
 
 networks:
   proxy:
