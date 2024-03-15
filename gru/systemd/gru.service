@@ -1,0 +1,17 @@
+[Unit]
+Description=iobio gru backend
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=ubuntu
+StandardOutput=append:/var/log/gru/std_log.log
+StandardError=append:/var/log/gru/err_log.log
+#WorkingDirectory=/mnt/gru
+ExecStart=/mnt/gru_efs/run.sh
+
+[Install]
+WantedBy=multi-user.target
