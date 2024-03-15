@@ -17,7 +17,7 @@ const stream = require('stream');
 const semver = require('semver');
 
 const MAX_STDERR_LEN = 1048576;
-const MIN_DATA_DIR_VERSION = '1.11.0';
+const MIN_DATA_DIR_VERSION = '1.12.0';
 
 console.log(`Using data directory ${path.resolve(dataPath(''))}`);
 const dataDirVersion = fs.readFileSync(dataPath('VERSION')).toString();
@@ -118,6 +118,21 @@ router.post('/bedRegion', async (ctx) => {
     const indexUrl = params.indexUrl ? params.indexUrl : '';
     const region = genRegionStr(params.region);
     await handle(ctx, 'bedRegion.sh', [params.url, indexUrl, region]);
+});
+
+router.post('/bigWigDepther', async (ctx) => {
+    const params = JSON.parse(ctx.request.body);
+    const url = params.url;
+    const region = genRegionStr(params.region);
+    await handle(ctx, 'bigWigDepther.sh', ["--url", params.url, "--region", region]);
+});
+
+
+router.post('/getReferenceSequence', async (ctx) => {
+    const params = JSON.parse(ctx.request.body);
+    const refFastaPath = dataPath(params.fastaPath);
+    const region = genRegionStr(params.region);
+    await handle(ctx, 'getReferenceSequence.sh', [refFastaPath, region]);
 });
 
 router.post('/variantHeader', async (ctx) => {
